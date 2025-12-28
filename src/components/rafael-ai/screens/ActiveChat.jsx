@@ -49,7 +49,7 @@ function RafaelLabel({ size = 'default' }) {
         fontSize: isLarge ? '19px' : '15px',
         fontWeight: '600',
         color: '#111',
-        fontFamily: "'Geist', sans-serif",
+        fontFamily: "'Lora', Charter, Georgia, serif",
       }}>
         {mentor.name}
       </span>
@@ -96,6 +96,7 @@ function UserBubble({ children }) {
         fontSize: '15px',
         lineHeight: '1.5',
         fontFamily: "'Geist', -apple-system, sans-serif",
+        boxShadow: '0 6px 28px rgba(16, 185, 129, 0.55)',
       }}>
         {children}
       </div>
@@ -367,21 +368,23 @@ function ChatInputBar({ placeholder, onSend, disabled }) {
       left: 0,
       right: 0,
       padding: '12px 20px 24px',
-      background: 'linear-gradient(to top, #FAFAFA 70%, rgba(250, 250, 250, 0))',
+      background: 'transparent',
       display: 'flex',
       justifyContent: 'center',
     }}>
       <div style={{
         width: '100%',
         maxWidth: '720px',
-        background: '#FFFFFF',
-        border: '1px solid rgba(0, 0, 0, 0.08)',
+        background: 'rgba(255, 255, 255, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.4)',
         borderRadius: '20px',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         opacity: disabled ? 0.6 : 1,
       }}>
         {/* Text Area */}
@@ -841,34 +844,42 @@ export function ActiveChat({ initialMessage, onBack }) {
       flexDirection: 'column',
       height: '100vh',
       overflow: 'hidden', // Prevent body scroll - force scroll inside container
-      backgroundColor: '#FAFAFA',
+      backgroundColor: '#FAF6F0',
     }}>
       {/* Header - Sticky */}
       <div style={{
-        position: 'sticky',
-        top: 0,
+        position: 'fixed',
+        top: 6,
+        left: 20,
+        right: 20,
         zIndex: 100,
-        borderBottom: '1px solid #F0F0F0',
         display: 'flex',
         alignItems: 'center',
-        padding: '12px 16px',
-        backgroundColor: '#FFFFFF',
+        padding: '10px 14px',
+        borderRadius: '20px',
+        background: 'rgba(255, 255, 255, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.4)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
       }}>
         <button
           onClick={onBack}
           style={{
-            padding: '8px',
-            marginLeft: '-8px',
-            color: '#666',
-            background: 'none',
-            border: 'none',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            color: '#888',
+            background: 'transparent',
+            border: '1.5px solid #E0E0E0',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'all 0.15s ease',
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -899,8 +910,8 @@ export function ActiveChat({ initialMessage, onBack }) {
           overflowY: 'auto',
         }}
       >
-        {/* Inner wrapper with padding */}
-        <div style={{ padding: '24px 20px 140px' }}>
+        {/* Inner wrapper with padding - extra top padding so content scrolls under header */}
+        <div style={{ padding: '85px 20px 140px' }}>
           <div
             style={{
               maxWidth: '720px',
@@ -927,7 +938,7 @@ export function ActiveChat({ initialMessage, onBack }) {
                       // Add top margin for focused user message so it's not flush with header
                       marginTop: isFocusedUser ? 8 : undefined,
                       // CSS scroll-margin so scrollIntoView leaves space at top
-                      scrollMarginTop: isFocusedUser ? 16 : undefined,
+                      scrollMarginTop: isFocusedUser ? 80 : undefined,
                     }}
                   >
                     {message.role === 'user' ? (
