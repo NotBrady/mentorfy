@@ -91,9 +91,9 @@ This is the exact framework I used to go from inconsistent bookings to fully boo
 Watch this. Then we'll talk about what it means for your specific situation.`
       },
       {
-        type: "ai-moment",
-        promptKey: "level-1-action",
-        skipThinking: true
+        type: "sales-page",
+        videoKey: "level-1-intro",
+        checkoutPlanId: "plan_joNwbFAIES0hH"
       }
     ],
 
@@ -149,8 +149,10 @@ Watch this. Then we'll talk about what it means for your specific situation.`
         videoKey: "level-2-teaching"
       },
       {
-        type: "ai-moment",
-        promptKey: "level-2-action"
+        type: "sales-page",
+        variant: "calendly",
+        calendlyUrl: "https://calendly.com/brady-mentorfy/30min",
+        videoKey: "level-2-teaching"
       }
     ],
 

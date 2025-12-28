@@ -1,6 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { VideoEmbed } from '../shared/VideoEmbed'
+import { WhopCheckoutEmbed } from '@whop/checkout/react'
+import { InlineWidget, useCalendlyEventListener } from 'react-calendly'
 import { mentor } from '../../../data/rafael-ai/mentor'
 import { useUser } from '../../../context/rafael-ai/UserContext'
 import { useAgent } from '../../../hooks/rafael-ai/useAgent'
@@ -32,6 +34,63 @@ So let me ask you: what would change in your business if every client who booked
 function containsPricingKeyword(message) {
   const lowerMessage = message.toLowerCase()
   return PRICING_KEYWORDS.some(keyword => lowerMessage.includes(keyword))
+}
+
+// Mock checkout response for "sell me" trigger
+const SELL_ME_KEYWORDS = ['sell me']
+const MOCK_CHECKOUT_RESPONSE = {
+  message: `Here's the deal.
+
+You've done Level 1. You know where you're stuck. You've seen the gap between where you are and where you want to be.
+
+Level 2 is where we close that gap.
+
+Inside, I'm going to show you exactly how to set your prices so the right clients find you — and pay without flinching. This isn't theory. This is the exact framework I used to go from $500 tattoos to $10k sessions.
+
+You'll learn:
+• Why undercharging is costing you the clients you actually want
+• The positioning shift that makes price objections disappear
+• How to raise your rates without losing your current bookings
+
+This is $100. One session at your new rate will pay for it 10x over.
+
+[CHECKOUT]
+
+No risk. If you go through Level 2 and don't feel like it was worth 10x what you paid, message me. I'll make it right.
+
+But I don't think that's going to happen. I think you're going to look back at this as the moment things started to shift.`,
+  checkoutPlanId: 'plan_joNwbFAIES0hH'
+}
+
+// Check if message contains "sell me" keywords
+function containsSellMeKeyword(message) {
+  const lowerMessage = message.toLowerCase()
+  return SELL_ME_KEYWORDS.some(keyword => lowerMessage.includes(keyword))
+}
+
+// Mock Calendly response for "book me" trigger
+const BOOK_ME_KEYWORDS = ['book me', 'book a call', 'schedule a call', 'let\'s talk']
+const MOCK_CALENDLY_RESPONSE = {
+  message: `Let's do it.
+
+Here's the deal with these calls: I don't do sales pitches. I'm going to look at where you are, where you want to be, and tell you exactly what I'd do if I were in your position.
+
+If it makes sense to work together, I'll tell you. If it doesn't, I'll tell you that too — and point you in the right direction.
+
+30 minutes. No fluff. Pick a time that works:
+
+[CALENDLY]
+
+Once you book, you'll get a confirmation with a link to join. Show up ready to talk specifics — the more context you give me, the more I can help.
+
+See you soon.`,
+  calendlyUrl: 'https://calendly.com/brady-mentorfy/30min'
+}
+
+// Check if message contains "book me" keywords
+function containsBookMeKeyword(message) {
+  const lowerMessage = message.toLowerCase()
+  return BOOK_ME_KEYWORDS.some(keyword => lowerMessage.includes(keyword))
 }
 
 // Avatar component with black glow (consistent with rest of app)
@@ -425,14 +484,293 @@ function InlineVideoEmbed({ url, isVisible }) {
   )
 }
 
+// Inline Checkout Embed component for streaming messages
+function InlineCheckoutEmbed({ planId, isVisible, onComplete }) {
+  const [purchaseComplete, setPurchaseComplete] = useState(false)
+
+  const handleComplete = (completedPlanId, receiptId) => {
+    console.log('Purchase complete:', completedPlanId, receiptId)
+    setPurchaseComplete(true)
+    onComplete?.(completedPlanId, receiptId)
+  }
+
+  if (purchaseComplete) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        style={{
+          width: '100%',
+          margin: '20px 0',
+          padding: '24px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          marginBottom: '8px',
+        }}>
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={ACCENT_COLOR}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span style={{
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: '18px',
+            fontWeight: '600',
+            color: ACCENT_COLOR,
+          }}>
+            Payment successful!
+          </span>
+        </div>
+        <p style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '14px',
+          color: '#666',
+          margin: 0,
+        }}>
+          You now have access to Level 2. Let's get started.
+        </p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: isVisible ? 1 : 0, scale: isVisible ? 1 : 0.98 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      style={{
+        width: '100%',
+        margin: '20px 0',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        backgroundColor: '#FAF6F0',
+        border: '1px solid rgba(0, 0, 0, 0.06)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
+      }}
+    >
+      {/* Branded header */}
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'linear-gradient(to bottom, #FDFBF8, #FAF6F0)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            backgroundColor: ACCENT_COLOR,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 4px 12px rgba(16, 185, 129, 0.4), 0 8px 24px rgba(16, 185, 129, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1)`,
+            transform: 'translateY(-1px)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+          <div>
+            <div style={{
+              fontFamily: "'Lora', Charter, Georgia, serif",
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#111',
+            }}>
+              Level 2: Pricing Psychology
+            </div>
+            <div style={{
+              fontFamily: "'Geist', -apple-system, sans-serif",
+              fontSize: '12px',
+              color: '#666',
+              marginTop: '2px',
+            }}>
+              One-time purchase
+            </div>
+          </div>
+        </div>
+        <div style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#111',
+        }}>
+          $100
+        </div>
+      </div>
+
+      {/* Checkout embed with warmer background */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        padding: '4px',
+      }}>
+        <WhopCheckoutEmbed
+          planId={planId}
+          theme="light"
+          themeAccentColor="green"
+          skipRedirect={true}
+          onComplete={handleComplete}
+        />
+      </div>
+
+      {/* Trust footer */}
+      <div style={{
+        padding: '12px 20px',
+        borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        background: 'linear-gradient(to top, #FDFBF8, #FAF6F0)',
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <span style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '11px',
+          color: '#888',
+          letterSpacing: '0.02em',
+        }}>
+          Secure checkout powered by Whop
+        </span>
+      </div>
+    </motion.div>
+  )
+}
+
+// Inline Calendly Embed component for streaming messages
+function InlineCalendlyEmbed({ url, isVisible, onEventScheduled }) {
+  const [booked, setBooked] = useState(false)
+
+  useCalendlyEventListener({
+    onEventScheduled: (e) => {
+      console.log('Call booked!', e.data.payload)
+      setBooked(true)
+      onEventScheduled?.(e.data.payload)
+    },
+  })
+
+  if (booked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        style={{
+          width: '100%',
+          margin: '20px 0',
+          padding: '24px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          marginBottom: '8px',
+        }}>
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={ACCENT_COLOR}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span style={{
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: '18px',
+            fontWeight: '600',
+            color: ACCENT_COLOR,
+          }}>
+            Call booked!
+          </span>
+        </div>
+        <p style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '14px',
+          color: '#666',
+          margin: 0,
+        }}>
+          Check your email for the confirmation and meeting link.
+        </p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: isVisible ? 1 : 0, scale: isVisible ? 1 : 0.98 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      style={{
+        width: '100%',
+        margin: '20px 0',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04)',
+      }}
+    >
+      <InlineWidget
+        url={url}
+        styles={{ height: '700px', minWidth: '100%' }}
+        pageSettings={{
+          backgroundColor: 'FAF6F0',
+          primaryColor: '10B981',
+          textColor: '1a1a1a',
+          hideEventTypeDetails: false,
+          hideLandingPageDetails: false,
+        }}
+      />
+    </motion.div>
+  )
+}
+
 // Streaming message component - shows text character by character
-function StreamingRafaelMessage({ content, videoUrl, onComplete }) {
+function StreamingRafaelMessage({ content, videoUrl, checkoutPlanId, calendlyUrl, onComplete, onCheckoutComplete, onCalendlyBooked }) {
   const [displayedText, setDisplayedText] = useState('')
   const [isComplete, setIsComplete] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
+  const [checkoutVisible, setCheckoutVisible] = useState(false)
+  const [calendlyVisible, setCalendlyVisible] = useState(false)
   const streamSpeed = 5 // ms per character
   const videoMarker = '[VIDEO]'
+  const checkoutMarker = '[CHECKOUT]'
+  const calendlyMarker = '[CALENDLY]'
   const videoShownRef = useRef(false)
+  const checkoutShownRef = useRef(false)
+  const calendlyShownRef = useRef(false)
 
   useEffect(() => {
     if (!content) return
@@ -464,6 +802,46 @@ function StreamingRafaelMessage({ content, videoUrl, onComplete }) {
                 index++
                 startStreaming()
               }, 300) // 300ms pause after video appears
+            }, 100)
+            return
+          }
+
+          // Check if we just revealed the checkout marker
+          if (currentText.includes(checkoutMarker) && !checkoutShownRef.current) {
+            setDisplayedText(currentText)
+            isPaused = true
+            clearInterval(interval)
+            checkoutShownRef.current = true
+
+            // Brief pause, then show checkout
+            setTimeout(() => {
+              setCheckoutVisible(true)
+              // Continue streaming after checkout appears
+              setTimeout(() => {
+                isPaused = false
+                index++
+                startStreaming()
+              }, 300) // 300ms pause after checkout appears
+            }, 100)
+            return
+          }
+
+          // Check if we just revealed the calendly marker
+          if (currentText.includes(calendlyMarker) && !calendlyShownRef.current) {
+            setDisplayedText(currentText)
+            isPaused = true
+            clearInterval(interval)
+            calendlyShownRef.current = true
+
+            // Brief pause, then show calendly
+            setTimeout(() => {
+              setCalendlyVisible(true)
+              // Continue streaming after calendly appears
+              setTimeout(() => {
+                isPaused = false
+                index++
+                startStreaming()
+              }, 300) // 300ms pause after calendly appears
             }, 100)
             return
           }
@@ -500,6 +878,30 @@ function StreamingRafaelMessage({ content, videoUrl, onComplete }) {
           key={index}
           url={videoUrl}
           isVisible={videoVisible}
+        />
+      )
+    }
+
+    // Check for checkout marker
+    if (block.trim() === '[CHECKOUT]' || block.includes('[CHECKOUT]')) {
+      return (
+        <InlineCheckoutEmbed
+          key={index}
+          planId={checkoutPlanId}
+          isVisible={checkoutVisible}
+          onComplete={onCheckoutComplete}
+        />
+      )
+    }
+
+    // Check for calendly marker
+    if (block.trim() === '[CALENDLY]' || block.includes('[CALENDLY]')) {
+      return (
+        <InlineCalendlyEmbed
+          key={index}
+          url={calendlyUrl}
+          isVisible={calendlyVisible}
+          onEventScheduled={onCalendlyBooked}
         />
       )
     }
@@ -1204,7 +1606,7 @@ function parseInlineMarkdown(text) {
 }
 
 // Format Rafael's message content with proper styling
-function RafaelContent({ content, videoUrl }) {
+function RafaelContent({ content, videoUrl, checkoutPlanId, calendlyUrl, onCheckoutComplete, onCalendlyBooked }) {
   const blocks = content.split('\n\n').filter(p => p.trim())
 
   const renderBlock = (block, index) => {
@@ -1218,6 +1620,30 @@ function RafaelContent({ content, videoUrl }) {
           key={index}
           url={videoUrl}
           isVisible={true}
+        />
+      )
+    }
+
+    // Check for checkout marker
+    if (block.trim() === '[CHECKOUT]' || block.includes('[CHECKOUT]')) {
+      return (
+        <InlineCheckoutEmbed
+          key={index}
+          planId={checkoutPlanId}
+          isVisible={true}
+          onComplete={onCheckoutComplete}
+        />
+      )
+    }
+
+    // Check for calendly marker
+    if (block.trim() === '[CALENDLY]' || block.includes('[CALENDLY]')) {
+      return (
+        <InlineCalendlyEmbed
+          key={index}
+          url={calendlyUrl}
+          isVisible={true}
+          onEventScheduled={onCalendlyBooked}
         />
       )
     }
@@ -1501,9 +1927,13 @@ export function ActiveChat({ initialMessage, onBack }) {
     // Add artificial delay to see thinking animation (2.3 seconds)
     await new Promise(resolve => setTimeout(resolve, 2300))
 
-    // Check for pricing keywords - use mock response if found
+    // Check for book me first (calendly), then sell me (checkout), then pricing (video)
     let response
-    if (containsPricingKeyword(content)) {
+    if (containsBookMeKeyword(content)) {
+      response = MOCK_CALENDLY_RESPONSE
+    } else if (containsSellMeKeyword(content)) {
+      response = MOCK_CHECKOUT_RESPONSE
+    } else if (containsPricingKeyword(content)) {
       response = MOCK_VIDEO_RESPONSE
     } else {
       // Get AI response
@@ -1522,6 +1952,8 @@ export function ActiveChat({ initialMessage, onBack }) {
             ...msg,
             content: response.message || response,
             videoUrl: response.videoUrl || (response.videoKey ? mentor.videos[response.videoKey]?.url : null),
+            checkoutPlanId: response.checkoutPlanId || null,
+            calendlyUrl: response.calendlyUrl || null,
             thinkingTime: finalThinkingTime
             // DO NOT set _placeholder: false here - that removes filler too early
           }
@@ -1545,6 +1977,44 @@ export function ActiveChat({ initialMessage, onBack }) {
 
     // DON'T remove filler or _placeholder here - keep them so scroll position stays stable
     // They will be cleaned up when user sends next message
+  }, [])
+
+  // Handle checkout completion
+  const handleCheckoutComplete = useCallback((planId, receiptId) => {
+    console.log('Checkout complete:', planId, receiptId)
+    // TODO: Unlock level, update UI, etc.
+    // For now, just log the purchase details
+  }, [])
+
+  // Track if booking confirmation was already sent
+  const bookingConfirmationSentRef = useRef(false)
+
+  // Handle Calendly booking completion
+  const handleCalendlyBooked = useCallback((payload) => {
+    // Guard against double-firing
+    if (bookingConfirmationSentRef.current) return
+    bookingConfirmationSentRef.current = true
+
+    console.log('Call booked:', payload)
+
+    // Add a confirmation message from Rafael
+    const confirmationMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'assistant',
+      content: `Got it — I just got the notification.
+
+Looking forward to our call. Come prepared with your biggest question or challenge, and I'll make sure you leave with a clear next step.
+
+Talk soon.`,
+      thinkingTime: null,
+      _isBookingConfirmation: true
+    }
+
+    // Small delay so the "Call booked!" state shows first
+    setTimeout(() => {
+      setMessages(prev => [...prev, confirmationMessage])
+      setStreamingMessageId(confirmationMessage.id)
+    }, 800)
   }, [])
 
   // Update thinking time ref from ThinkingIndicator
@@ -1708,7 +2178,11 @@ export function ActiveChat({ initialMessage, onBack }) {
                         <StreamingRafaelMessage
                           content={message.content || ''}
                           videoUrl={message.videoUrl}
+                          checkoutPlanId={message.checkoutPlanId}
+                          calendlyUrl={message.calendlyUrl}
                           onComplete={handleStreamingComplete}
+                          onCheckoutComplete={handleCheckoutComplete}
+                          onCalendlyBooked={handleCalendlyBooked}
                         />
                       )
                     ) : message.content ? (
@@ -1716,6 +2190,10 @@ export function ActiveChat({ initialMessage, onBack }) {
                         <RafaelContent
                           content={message.content}
                           videoUrl={message.videoUrl}
+                          checkoutPlanId={message.checkoutPlanId}
+                          calendlyUrl={message.calendlyUrl}
+                          onCheckoutComplete={handleCheckoutComplete}
+                          onCalendlyBooked={handleCalendlyBooked}
                         />
                       </RafaelMessage>
                     ) : null}

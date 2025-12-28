@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MentorAvatar } from '../shared/MentorAvatar'
 import { VideoEmbed } from '../shared/VideoEmbed'
@@ -9,6 +9,8 @@ import { ProgressIndicator } from '../shared/ProgressIndicator'
 import { ThinkingAnimation } from '../shared/ThinkingAnimation'
 import { AIMessage } from '../shared/AIMessage'
 import { AppShell, ContentContainer } from '../layouts/AppShell'
+import { WhopCheckoutEmbed } from '@whop/checkout/react'
+import { InlineWidget, useCalendlyEventListener } from 'react-calendly'
 import { levels } from '../../../data/rafael-ai/levels'
 import { mentor } from '../../../data/rafael-ai/mentor'
 import { useUser } from '../../../context/rafael-ai/UserContext'
@@ -1134,6 +1136,609 @@ function VideoStepContent({ step, onContinue, currentStep, totalSteps }) {
   )
 }
 
+// Sales Page Step Content - Dynamic sales page with typing animation
+function SalesPageStepContent({ step, onContinue, onSkip, currentStep, totalSteps }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [actionComplete, setActionComplete] = useState(false)
+  const bookingConfirmationSentRef = useRef(false)
+
+  // Determine variant: 'checkout' (default) or 'calendly'
+  const isCalendlyVariant = step.variant === 'calendly'
+
+  // Animation state
+  const [streamedText, setStreamedText] = useState('')
+  const [phase, setPhase] = useState('typing-above') // 'typing-above', 'video', 'typing-below', 'checkout', 'complete'
+  const [videoVisible, setVideoVisible] = useState(false)
+  const [checkoutVisible, setCheckoutVisible] = useState(false)
+  const [footerVisible, setFooterVisible] = useState(false)
+
+  const streamSpeed = 8 // ms per character
+
+  // Video embed info
+  const getVideoInfo = (url) => {
+    if (!url) return null
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?/]+)/)
+    if (ytMatch) return { provider: 'youtube', id: ytMatch[1] }
+    const wistiaMatch = url.match(/wistia\.com\/medias\/([^?/]+)/)
+    if (wistiaMatch) return { provider: 'wistia', id: wistiaMatch[1] }
+    return null
+  }
+
+  const video = step.videoKey ? mentor.videos[step.videoKey] : null
+  const videoInfo = video ? getVideoInfo(video.url) : null
+  const thumbnailUrl = videoInfo?.provider === 'youtube'
+    ? `https://img.youtube.com/vi/${videoInfo.id}/maxresdefault.jpg`
+    : videoInfo?.provider === 'wistia'
+      ? `https://fast.wistia.com/embed/medias/${videoInfo.id}/swatch`
+      : null
+  const embedUrl = videoInfo?.provider === 'youtube'
+    ? `https://www.youtube.com/embed/${videoInfo.id}?autoplay=1&rel=0`
+    : videoInfo?.provider === 'wistia'
+      ? `https://fast.wistia.net/embed/iframe/${videoInfo.id}?autoplay=1`
+      : null
+
+  const handleCheckoutComplete = (planId, receiptId) => {
+    console.log('Purchase complete:', planId, receiptId)
+    setActionComplete(true)
+    setTimeout(() => onContinue?.(), 1500)
+  }
+
+  // Handle Calendly booking
+  useCalendlyEventListener({
+    onEventScheduled: (e) => {
+      if (bookingConfirmationSentRef.current) return
+      bookingConfirmationSentRef.current = true
+      console.log('Call booked:', e.data.payload)
+      setActionComplete(true)
+    },
+  })
+
+  // Copy content based on variant
+  const getContent = () => {
+    if (isCalendlyVariant) {
+      return {
+        headline: "You're a great fit for 1-on-1.",
+        copyAboveVideo: `Based on everything you've shared, I think you'd benefit from working with me directly.
+
+This isn't for everyone. But you've done the work. You understand the framework. Now you need someone to look at your specific situation and tell you exactly what to do.
+
+That's what these calls are for.`,
+        copyBelowVideo: `Here's how it works:
+
+Book a 30-minute call with my team. We'll look at where you are, where you want to be, and whether working together makes sense.
+
+**No pressure.** If it's not the right fit, we'll tell you — and point you in the right direction.
+
+**If it is the right fit**, we'll map out exactly what working together would look like.
+
+This is for artists who are serious about making the jump. If that's you, grab a time:`
+      }
+    }
+    return {
+      headline: "Here's what I see.",
+      copyAboveVideo: `You're not here because you're lazy. You're not here because your work isn't good enough.
+
+You're here because you've been playing a game nobody taught you the rules to.
+
+You've been doing what you thought you were supposed to do — posting, grinding, hoping the right people notice. And sometimes they do. But it's inconsistent. Unpredictable.
+
+You can't build a life on unpredictable.
+
+The artists who are booked out 6+ months with $5k-$10k clients? They're not more talented than you. They just figured out something most artists never learn.
+
+And that's exactly what I'm going to show you.`,
+      copyBelowVideo: `Here's what happens in Level 2:
+
+I'm going to break down the exact pricing framework that took me from $500 tattoos to $10k sessions. Not theory — the actual mental shifts and positioning moves that make premium clients seek you out.
+
+You'll walk away knowing:
+
+**Why you've been undercharging** — and it's not what you think. It's not confidence. It's not your skill level. It's a positioning problem, and it's fixable.
+
+**How to set prices that attract better clients** — not by "charging your worth" (that advice is useless). By understanding what premium clients actually pay for.
+
+**The conversation shift** — what to say when someone asks your rate so they stop comparing you to cheaper artists.
+
+This is $100.
+
+One session at your new rate pays for it 10x over. And you'll get there faster than you think.`
+    }
+  }
+
+  const content = getContent()
+  const fullTextAbove = content.headline + '\n\n' + content.copyAboveVideo
+  const fullTextBelow = content.copyBelowVideo
+
+  // Streaming animation effect
+  useEffect(() => {
+    let timeout
+
+    if (phase === 'typing-above') {
+      if (streamedText.length < fullTextAbove.length) {
+        timeout = setTimeout(() => {
+          const chunkSize = Math.floor(Math.random() * 3) + 2
+          setStreamedText(fullTextAbove.slice(0, streamedText.length + chunkSize))
+        }, streamSpeed)
+      } else {
+        // Done typing above, show video
+        timeout = setTimeout(() => {
+          setPhase('video')
+          setVideoVisible(true)
+        }, 300)
+      }
+    } else if (phase === 'video') {
+      // After video appears, start typing below
+      timeout = setTimeout(() => {
+        setPhase('typing-below')
+        setStreamedText('') // Reset for below content
+      }, 600)
+    } else if (phase === 'typing-below') {
+      if (streamedText.length < fullTextBelow.length) {
+        timeout = setTimeout(() => {
+          const chunkSize = Math.floor(Math.random() * 3) + 2
+          setStreamedText(fullTextBelow.slice(0, streamedText.length + chunkSize))
+        }, streamSpeed)
+      } else {
+        // Done typing below, show checkout
+        timeout = setTimeout(() => {
+          setPhase('checkout')
+          setCheckoutVisible(true)
+        }, 300)
+      }
+    } else if (phase === 'checkout') {
+      // After checkout appears, show footer
+      timeout = setTimeout(() => {
+        setPhase('complete')
+        setFooterVisible(true)
+      }, 500)
+    }
+
+    return () => clearTimeout(timeout)
+  }, [streamedText, phase, fullTextAbove, fullTextBelow])
+
+  // Parse text with bold markers
+  const parseTextWithBold = (text) => {
+    return text.split(/(\*\*[^*]+\*\*)/).map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} style={{ fontWeight: '600', color: '#000' }}>{part.slice(2, -2)}</strong>
+      }
+      return part
+    })
+  }
+
+  // Render streamed paragraphs
+  const renderStreamedContent = (text, isAbove = true) => {
+    const paragraphs = text.split('\n\n').filter(p => p.trim())
+
+    return paragraphs.map((paragraph, i) => {
+      const isHeadline = isAbove && i === 0
+
+      if (isHeadline) {
+        return (
+          <h1 key={i} style={{
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#000',
+            lineHeight: '1.25',
+            margin: 0,
+            marginBottom: '28px',
+          }}>
+            {paragraph}
+            {phase === 'typing-above' && i === paragraphs.length - 1 && (
+              <span style={{
+                display: 'inline-block',
+                width: '2px',
+                height: '0.85em',
+                backgroundColor: '#333',
+                marginLeft: '3px',
+                verticalAlign: 'baseline',
+                animation: 'cursorBlink 1s step-end infinite',
+              }} />
+            )}
+          </h1>
+        )
+      }
+
+      return (
+        <p key={i} style={{
+          fontSize: '17px',
+          lineHeight: '1.75',
+          color: '#222',
+          margin: 0,
+          marginTop: '20px',
+          fontFamily: "'Lora', Charter, Georgia, serif",
+        }}>
+          {parseTextWithBold(paragraph)}
+          {((isAbove && phase === 'typing-above') || (!isAbove && phase === 'typing-below')) &&
+           i === paragraphs.length - 1 && (
+            <span style={{
+              display: 'inline-block',
+              width: '2px',
+              height: '1em',
+              backgroundColor: '#333',
+              marginLeft: '2px',
+              verticalAlign: 'text-bottom',
+              animation: 'cursorBlink 1s step-end infinite',
+            }} />
+          )}
+        </p>
+      )
+    })
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
+
+      <div style={{
+        maxWidth: '640px',
+        margin: '0 auto',
+        padding: '100px 24px 120px',
+      }}>
+        {/* Progress Indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
+          <ProgressIndicator current={currentStep} total={totalSteps} />
+        </div>
+
+        {/* Copy Above Video - Streaming */}
+        <div style={{ marginBottom: videoVisible ? '32px' : 0 }}>
+          {renderStreamedContent(
+            phase === 'typing-above' ? streamedText : fullTextAbove,
+            true
+          )}
+        </div>
+
+        {/* Video Embed - Animated entrance */}
+        <AnimatePresence>
+          {videoVisible && videoInfo && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+              style={{
+                width: '100%',
+                aspectRatio: '16/9',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                cursor: isPlaying ? 'default' : 'pointer',
+                position: 'relative',
+                backgroundColor: '#000',
+                marginBottom: '32px',
+              }}
+              onClick={() => !isPlaying && setIsPlaying(true)}
+            >
+              {isPlaying ? (
+                <iframe
+                  src={embedUrl}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                  }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Video"
+                />
+              ) : (
+                <>
+                  <img
+                    src={thumbnailUrl}
+                    alt="Video thumbnail"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  }} />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2, duration: 0.3 }}
+                      style={{
+                        width: '72px',
+                        height: '72px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                      }}
+                    >
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="#000" style={{ marginLeft: '3px' }}>
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </motion.div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Copy Below Video - Streaming */}
+        {(phase === 'typing-below' || phase === 'checkout' || phase === 'complete') && (
+          <div style={{ marginBottom: checkoutVisible ? '32px' : 0 }}>
+            {renderStreamedContent(
+              phase === 'typing-below' ? streamedText : fullTextBelow,
+              false
+            )}
+          </div>
+        )}
+
+        {/* Checkout or Calendly Embed - Animated entrance */}
+        <AnimatePresence>
+          {checkoutVisible && !actionComplete && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+              style={{
+                width: '100%',
+                margin: '24px 0',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                backgroundColor: isCalendlyVariant ? 'transparent' : '#FAF6F0',
+                border: isCalendlyVariant ? 'none' : '1px solid rgba(0, 0, 0, 0.06)',
+                boxShadow: isCalendlyVariant ? '0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04)' : '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              {isCalendlyVariant ? (
+                /* Calendly embed */
+                <InlineWidget
+                  url={step.calendlyUrl || "https://calendly.com/brady-mentorfy/30min"}
+                  styles={{ height: '700px', minWidth: '100%' }}
+                  pageSettings={{
+                    backgroundColor: 'FAF6F0',
+                    primaryColor: '10B981',
+                    textColor: '1a1a1a',
+                    hideEventTypeDetails: false,
+                    hideLandingPageDetails: false,
+                  }}
+                />
+              ) : (
+                <>
+                  {/* Branded header */}
+                  <div style={{
+                    padding: '16px 20px',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'linear-gradient(to bottom, #FDFBF8, #FAF6F0)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.3, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          backgroundColor: ACCENT_COLOR,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 4px 12px rgba(16, 185, 129, 0.4), 0 8px 24px rgba(16, 185, 129, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1)`,
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="1" x2="12" y2="23" />
+                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                      </motion.div>
+                      <div>
+                        <div style={{
+                          fontFamily: "'Lora', Charter, Georgia, serif",
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          color: '#111',
+                        }}>
+                          Level 2: Pricing Psychology
+                        </div>
+                        <div style={{
+                          fontFamily: "'Geist', -apple-system, sans-serif",
+                          fontSize: '12px',
+                          color: '#666',
+                          marginTop: '2px',
+                        }}>
+                          One-time purchase
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      fontFamily: "'Geist', -apple-system, sans-serif",
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#111',
+                    }}>
+                      $100
+                    </div>
+                  </div>
+
+                  {/* Checkout embed */}
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '4px' }}>
+                    <WhopCheckoutEmbed
+                      planId={step.checkoutPlanId || "plan_joNwbFAIES0hH"}
+                      theme="light"
+                      themeAccentColor="green"
+                      skipRedirect={true}
+                      onComplete={handleCheckoutComplete}
+                    />
+                  </div>
+
+                  {/* Trust footer */}
+                  <div style={{
+                    padding: '12px 20px',
+                    borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(to top, #FDFBF8, #FAF6F0)',
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span style={{
+                      fontFamily: "'Geist', -apple-system, sans-serif",
+                      fontSize: '11px',
+                      color: '#888',
+                      letterSpacing: '0.02em',
+                    }}>
+                      Secure checkout powered by Whop
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Success state after checkout or booking */}
+        <AnimatePresence>
+          {actionComplete && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{
+                width: '100%',
+                margin: '24px 0',
+                padding: '24px',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                marginBottom: '8px',
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={ACCENT_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span style={{
+                  fontFamily: "'Lora', Charter, Georgia, serif",
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: ACCENT_COLOR,
+                }}>
+                  {isCalendlyVariant ? 'Call booked!' : 'Payment successful!'}
+                </span>
+              </div>
+              <p style={{
+                fontFamily: "'Geist', -apple-system, sans-serif",
+                fontSize: '14px',
+                color: '#666',
+                margin: 0,
+              }}>
+                {isCalendlyVariant
+                  ? "Check your email for the confirmation and meeting link."
+                  : "You now have access to Level 2. Let's get started."
+                }
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Footer - Risk reversal & skip button */}
+        <AnimatePresence>
+          {footerVisible && !actionComplete && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              {/* Risk Reversal Copy */}
+              <p style={{
+                fontFamily: "'Lora', Charter, Georgia, serif",
+                fontSize: '14px',
+                lineHeight: '1.6',
+                color: '#888',
+                textAlign: 'center',
+                margin: '24px 0 40px',
+                fontStyle: 'italic',
+              }}>
+                {isCalendlyVariant
+                  ? "No pressure. If we're not the right fit, we'll tell you."
+                  : "No risk. If Level 2 doesn't change how you see your business, message me. I'll make it right."
+                }
+              </p>
+
+              {/* Divider */}
+              <hr style={{
+                border: 'none',
+                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+                margin: '0 0 24px',
+              }} />
+
+              {/* Skip option - Secondary button */}
+              <div style={{ textAlign: 'center' }}>
+                <p style={{
+                  fontFamily: "'Geist', -apple-system, sans-serif",
+                  fontSize: '13px',
+                  color: '#999',
+                  marginBottom: '12px',
+                }}>
+                  or continue without purchasing
+                </p>
+                <motion.button
+                  onClick={onSkip || onContinue}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#666',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: '1px solid rgba(0, 0, 0, 0.15)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: "'Geist', -apple-system, sans-serif",
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Continue <span>→</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  )
+}
+
 // Content transition variants - smooth fade without full page blink
 const contentVariants = {
   initial: { opacity: 0, y: 8 },
@@ -1156,8 +1761,8 @@ export function LevelFlow({ levelId, onComplete, onBack }) {
   // Current step number for progress indicator (0-indexed)
   const currentStepNumber = currentStepIndex
 
-  // Determine if back button should be dimmed (AI moment, video, thinking steps)
-  const isNonQuestionStep = currentStep.type === 'ai-moment' || currentStep.type === 'video' || currentStep.type === 'thinking'
+  // Determine if back button should be dimmed (AI moment, video, thinking, sales-page steps)
+  const isNonQuestionStep = currentStep.type === 'ai-moment' || currentStep.type === 'video' || currentStep.type === 'thinking' || currentStep.type === 'sales-page'
 
   const handleAnswer = (stateKey, value) => {
     dispatch({ type: 'SET_ANSWER', payload: { key: stateKey, value } })
@@ -1244,6 +1849,18 @@ export function LevelFlow({ levelId, onComplete, onBack }) {
             key={currentStepIndex}
             step={currentStep}
             onContinue={goToNextStep}
+            currentStep={currentStepNumber}
+            totalSteps={totalSteps}
+          />
+        )
+
+      case 'sales-page':
+        return (
+          <SalesPageStepContent
+            key={currentStepIndex}
+            step={currentStep}
+            onContinue={goToNextStep}
+            onSkip={goToNextStep}
             currentStep={currentStepNumber}
             totalSteps={totalSteps}
           />
