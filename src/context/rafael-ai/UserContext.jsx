@@ -9,6 +9,12 @@ const initialState = {
     createdAt: null
   },
 
+  // Timeline state for horizontal navigation
+  timeline: {
+    currentPanel: 0, // 0=past, 1=present (only 2 panels)
+    profileComplete: false
+  },
+
   situation: {
     experience: "",
     currentIncome: "",
@@ -100,8 +106,8 @@ function reducer(state, action) {
           completedLevels,
           currentLevel: levelId + 1,
           currentStep: 0,
-          currentScreen: 'chat-home',
           justCompletedLevel: true
+          // Note: screen is set separately by the caller
         }
       }
     }
@@ -181,6 +187,33 @@ function reducer(state, action) {
 
     case 'RESET':
       return initialState
+
+    case 'SET_PANEL':
+      return {
+        ...state,
+        timeline: {
+          ...state.timeline,
+          currentPanel: action.payload
+        }
+      }
+
+    case 'SET_PROFILE_COMPLETE':
+      return {
+        ...state,
+        timeline: {
+          ...state.timeline,
+          profileComplete: action.payload
+        }
+      }
+
+    case 'SET_CURRENT_LEVEL':
+      return {
+        ...state,
+        progress: {
+          ...state.progress,
+          currentLevel: action.payload
+        }
+      }
 
     default:
       return state
