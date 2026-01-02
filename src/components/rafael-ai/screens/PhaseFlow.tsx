@@ -388,8 +388,7 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
   useEffect(() => {
     async function fetchResponse() {
       const result = await getResponse(step.promptKey, state)
-      const text = typeof result === 'string' ? result : (result.message || result)
-      setResponse(text)
+      setResponse(result.message)
     }
     fetchResponse()
   }, [step.promptKey, state, getResponse])

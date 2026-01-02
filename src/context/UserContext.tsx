@@ -1,12 +1,18 @@
 'use client'
 
-import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useRef } from 'react'
 
 const STORAGE_KEY = 'mentorfy-rafael-ai-state'
+const SESSION_KEY = 'mentorfy-session-id'
+const CLERK_ORG_ID = 'rafael-tatts' // MVP hardcode
 
 const initialState = {
+  sessionId: null as string | null,
+  sessionLoading: true,
+
   user: {
     name: "",
+    email: "",
     phone: "",
     createdAt: null as string | null
   },
@@ -99,6 +105,9 @@ type Action =
   | { type: 'SET_PANEL'; payload: number }
   | { type: 'SET_PROFILE_COMPLETE'; payload: boolean }
   | { type: 'SET_CURRENT_PHASE'; payload: number }
+  | { type: 'SET_SESSION'; payload: { sessionId: string; loading?: boolean } }
+  | { type: 'SET_SESSION_LOADING'; payload: boolean }
+  | { type: 'HYDRATE_FROM_BACKEND'; payload: any }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -114,13 +123,26 @@ function reducer(state: State, action: Action): State {
 
     case 'SET_ANSWER': {
       const { key, value } = action.payload
-      const [section, field] = key.split('.')
+      const parts = key.split('.')
+      const section = parts[0]
+      const field = parts[1]
 
       // Validate that section exists and is an object
       const currentSection = (state as any)[section]
       if (!currentSection || typeof currentSection !== 'object') {
         console.warn(`SET_ANSWER: Invalid section "${section}" for key "${key}"`)
         return state
+      }
+
+      // If no field specified and value is an object, merge into section
+      if (!field && typeof value === 'object' && value !== null) {
+        return {
+          ...state,
+          [section]: {
+            ...currentSection,
+            ...value
+          }
+        }
       }
 
       return {
@@ -272,15 +294,138 @@ function reducer(state: State, action: Action): State {
         }
       }
 
+    case 'SET_SESSION':
+      return {
+        ...state,
+        sessionId: action.payload.sessionId,
+        sessionLoading: action.payload.loading ?? false
+      }
+
+    case 'SET_SESSION_LOADING':
+      return {
+        ...state,
+        sessionLoading: action.payload
+      }
+
+    case 'HYDRATE_FROM_BACKEND': {
+      const backendData = action.payload
+      return {
+        ...state,
+        sessionId: backendData.id,
+        sessionLoading: false,
+        user: {
+          ...state.user,
+          name: backendData.name || state.user.name,
+          email: backendData.email || state.user.email,
+          phone: backendData.phone || state.user.phone,
+        },
+        // Merge backend context into local state if it exists
+        ...(backendData.context?.situation && { situation: { ...state.situation, ...backendData.context.situation } }),
+        ...(backendData.context?.phase2 && { phase2: { ...state.phase2, ...backendData.context.phase2 } }),
+        ...(backendData.context?.phase3 && { phase3: { ...state.phase3, ...backendData.context.phase3 } }),
+        ...(backendData.context?.phase4 && { phase4: { ...state.phase4, ...backendData.context.phase4 } }),
+        ...(backendData.context?.progress && { progress: { ...state.progress, ...backendData.context.progress } }),
+      }
+    }
+
     default:
       return state
   }
 }
 
-const UserContext = createContext<{ state: State; dispatch: React.Dispatch<Action> } | null>(null)
+type ContextValue = {
+  state: State
+  dispatch: React.Dispatch<Action>
+  syncToBackend: () => Promise<{ returning?: boolean; existingSessionId?: string } | null>
+}
+
+const UserContext = createContext<ContextValue | null>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  // Sync context to backend session
+  const syncToBackend = useCallback(async () => {
+    if (!state.sessionId) return null
+
+    try {
+      const res = await fetch(`/api/session/${state.sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: state.user.name || undefined,
+          email: state.user.email || undefined,
+          phone: state.user.phone || undefined,
+          context: {
+            situation: state.situation,
+            phase2: state.phase2,
+            phase3: state.phase3,
+            phase4: state.phase4,
+            progress: state.progress,
+          }
+        })
+      })
+
+      if (!res.ok) {
+        console.error('Failed to sync to backend')
+        return null
+      }
+
+      const data = await res.json()
+
+      // Handle returning user detection
+      if (data.returning && data.existingSessionId) {
+        return { returning: true, existingSessionId: data.existingSessionId }
+      }
+
+      return null
+    } catch (e) {
+      console.error('Sync error:', e)
+      return null
+    }
+  }, [state.sessionId, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress])
+
+  // Initialize session - create or validate existing
+  const initSession = useCallback(async () => {
+    const savedSessionId = localStorage.getItem(SESSION_KEY)
+
+    if (savedSessionId) {
+      // Validate existing session
+      try {
+        const res = await fetch(`/api/session/${savedSessionId}`)
+        if (res.ok) {
+          const data = await res.json()
+          dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
+          return
+        }
+        // Session not found, clear and create new
+        localStorage.removeItem(SESSION_KEY)
+      } catch (e) {
+        console.error('Failed to validate session:', e)
+        localStorage.removeItem(SESSION_KEY)
+      }
+    }
+
+    // Create new session
+    try {
+      const res = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID })
+      })
+      if (res.ok) {
+        const { sessionId } = await res.json()
+        localStorage.setItem(SESSION_KEY, sessionId)
+        dispatch({ type: 'SET_SESSION', payload: { sessionId, loading: false } })
+      } else {
+        console.error('Failed to create session')
+        dispatch({ type: 'SET_SESSION_LOADING', payload: false })
+      }
+    } catch (e) {
+      console.error('Session creation error:', e)
+      dispatch({ type: 'SET_SESSION_LOADING', payload: false })
+    }
+  }, [])
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -306,7 +451,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } else {
       dispatch({ type: 'UPDATE_VISIT' })
     }
-  }, [])
+
+    // Initialize backend session
+    initSession()
+  }, [initSession])
 
   // Save to localStorage on state change
   useEffect(() => {
@@ -315,8 +463,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [state])
 
+  // Persist sessionId to localStorage when it changes
+  useEffect(() => {
+    if (state.sessionId) {
+      localStorage.setItem(SESSION_KEY, state.sessionId)
+    }
+  }, [state.sessionId])
+
+  // Auto-sync to backend when phases complete or user info changes
+  const lastSyncedRef = useRef<string>('')
+  useEffect(() => {
+    if (!state.sessionId || state.sessionLoading) return
+
+    // Create a sync key from data that should trigger sync
+    const syncKey = JSON.stringify({
+      user: state.user,
+      completedPhases: state.progress.completedPhases,
+      currentPhase: state.progress.currentPhase
+    })
+
+    // Don't sync if nothing changed
+    if (syncKey === lastSyncedRef.current) return
+    lastSyncedRef.current = syncKey
+
+    // Debounce sync
+    const timer = setTimeout(() => {
+      syncToBackend()
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [state.sessionId, state.sessionLoading, state.user, state.progress.completedPhases, state.progress.currentPhase, syncToBackend])
+
   return (
-    <UserContext.Provider value={{ state, dispatch }}>
+    <UserContext.Provider value={{ state, dispatch, syncToBackend }}>
       {children}
     </UserContext.Provider>
   )
@@ -338,4 +517,14 @@ export function useUserState() {
 export function useUserDispatch() {
   const { dispatch } = useUser()
   return dispatch
+}
+
+export function useSessionId() {
+  const { state } = useUser()
+  return state.sessionId
+}
+
+export function useSyncToBackend() {
+  const { syncToBackend } = useUser()
+  return syncToBackend
 }

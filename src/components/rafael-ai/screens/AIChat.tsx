@@ -538,60 +538,6 @@ function StreamingRafaelMessage({ content, onComplete }: StreamingRafaelMessageP
   )
 }
 
-// Demo command responses with embeds
-const DEMO_COMMANDS: Record<string, any> = {
-  'sell me': {
-    beforeText: `Perfect timing. Let me show you exactly what you'll get when you join the inner circle.
-
-This isn't just another course — it's a complete transformation system designed specifically for artists who are done playing small.`,
-    embedType: 'checkout',
-    checkoutPlanId: 'plan_joNwbFAIES0hH',
-    afterText: `**What's included:**
-
-• 12 weeks of intensive coaching
-• Private community access
-• Weekly live Q&A calls
-• Done-for-you pricing templates
-• Unlimited message support
-
-One session at your new rate pays for it 10x over. And you'll get there faster than you think.
-
-Are you ready to stop undercharging?`
-  },
-  'video': {
-    beforeText: `I want to show you something that changed everything for one of my students.
-
-Watch this 3-minute breakdown:`,
-    embedType: 'video',
-    videoUrl: 'https://rafaeltats.wistia.com/medias/4i06zkj7fg',
-    afterText: `**Key takeaways from the video:**
-
-1. Your pricing reflects your positioning, not your skill level
-2. Premium clients don't want the cheapest option — they want the *best*
-3. The artist who charges $5k gets more respect than the one charging $500
-
-This is exactly what we'll be working on together.
-
-What stood out most to you?`
-  },
-  'book me': {
-    beforeText: `Let's get you on my calendar.
-
-I have a few spots open this week for a strategy call. This is where we'll map out your exact path to $30k+ months.`,
-    embedType: 'booking',
-    calendlyUrl: 'https://calendly.com/brady-mentorfy/30min',
-    afterText: `**What we'll cover on the call:**
-
-• Your current pricing and positioning
-• The #1 thing holding you back
-• A custom roadmap for your first $10k month
-• Whether the program is right for you
-
-No pressure, no hard sell — just clarity.
-
-Pick a time that works and I'll see you there.`
-  }
-}
 
 interface ChatCheckoutEmbedProps {
   planId: string
@@ -947,7 +893,7 @@ export function AIChat({
   onContinue
 }: AIChatProps) {
   const { state, dispatch } = useUser()
-  const { getResponse } = useAgent()
+  const { sendMessage } = useAgent()
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
@@ -1122,52 +1068,7 @@ export function AIChat({
 
     const userMessage: Message = { id: uid(), role: 'user', content }
 
-    // Check for demo commands
-    const normalizedContent = content.toLowerCase().trim()
-    const demoCommand = DEMO_COMMANDS[normalizedContent]
-
-    if (demoCommand) {
-      // Handle demo command with embedded content
-      const assistantTurn: Message = {
-        id: uid(),
-        role: 'assistant',
-        content: '',
-        _placeholder: true,
-        embedData: demoCommand
-      }
-
-      setMessages(prev => [
-        ...prev.map(msg => msg._placeholder ? { ...msg, _placeholder: false } : msg),
-        userMessage,
-        assistantTurn
-      ])
-      setFocusMessageId(userMessage.id)
-      setStreamingMessageId(assistantTurn.id)
-      setIsTyping(true)
-      dispatch({ type: 'ADD_MESSAGE', payload: userMessage })
-
-      // Short thinking delay for demo commands
-      await new Promise(resolve => setTimeout(resolve, TIMING.DEMO_THINKING_DELAY))
-      const finalThinkingTime = thinkingTimeRef.current
-      setIsTyping(false)
-
-      // Update message to show embed content
-      setMessages(prev => prev.map(msg =>
-        msg.id === assistantTurn.id
-          ? {
-              ...msg,
-              content: demoCommand.beforeText + '\n\n[EMBED]\n\n' + demoCommand.afterText,
-              thinkingTime: finalThinkingTime,
-              embedData: demoCommand
-            }
-          : msg
-      ))
-
-      dispatch({ type: 'ADD_MESSAGE', payload: { role: 'assistant', content: demoCommand.beforeText } })
-      return
-    }
-
-    // Regular message handling
+    // Message handling
     const assistantTurn: Message = {
       id: uid(),
       role: 'assistant',
@@ -1187,22 +1088,35 @@ export function AIChat({
 
     await new Promise(resolve => setTimeout(resolve, TIMING.RESPONSE_DELAY))
 
-    const response = await getResponse('chat', state, content)
-    const finalThinkingTime = thinkingTimeRef.current
-    setIsTyping(false)
+    try {
+      const finalText = await sendMessage(content, (streamedText) => {
+        // Update message content as chunks arrive
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantTurn.id
+            ? { ...msg, content: streamedText }
+            : msg
+        ))
+      })
 
-    setMessages(prev => prev.map(msg =>
-      msg.id === assistantTurn.id
-        ? {
-            ...msg,
-            content: response.message || response,
-            thinkingTime: finalThinkingTime
-          }
-        : msg
-    ))
+      const finalThinkingTime = thinkingTimeRef.current
+      setIsTyping(false)
 
-    dispatch({ type: 'ADD_MESSAGE', payload: { role: 'assistant', content: response.message || response } })
-  }, [state, dispatch, getResponse])
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantTurn.id
+          ? { ...msg, content: finalText, thinkingTime: finalThinkingTime }
+          : msg
+      ))
+
+      dispatch({ type: 'ADD_MESSAGE', payload: { role: 'assistant', content: finalText } })
+    } catch (err: any) {
+      setIsTyping(false)
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantTurn.id
+          ? { ...msg, content: err.message || 'Something went wrong. Please try again.' }
+          : msg
+      ))
+    }
+  }, [state, dispatch, sendMessage])
 
   const handleStreamingComplete = useCallback(() => {
     setStreamingMessageId(null)
