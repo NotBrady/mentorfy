@@ -3,7 +3,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { db } from '@/lib/db'
 import { searchMemories, writeMemory, getContainerId } from '@/lib/supermemory'
 import { getAgent } from '@/agents/registry'
-import { createTrace } from '@/lib/langfuse'
+import { createTrace, flushLangfuse } from '@/lib/langfuse'
 import { chatLimiter, checkRateLimit, rateLimitResponse, getIdentifier } from '@/lib/ratelimit'
 
 const anthropic = createAnthropic({
@@ -136,6 +136,9 @@ export async function POST(req: Request) {
             outputTokens: usage?.outputTokens,
           },
         })
+
+        // Flush traces to Langfuse (fire-and-forget in serverless)
+        flushLangfuse()
       },
     })
 

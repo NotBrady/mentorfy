@@ -2,7 +2,7 @@ import { generateText } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { db } from '@/lib/db'
 import { getAgent } from '@/agents/registry'
-import { createTrace } from '@/lib/langfuse'
+import { createTrace, flushLangfuse } from '@/lib/langfuse'
 import { generateLimiter, checkRateLimit, rateLimitResponse, getIdentifier } from '@/lib/ratelimit'
 
 const anthropic = createAnthropic({
@@ -114,6 +114,9 @@ export async function POST(req: Request, context: RouteContext) {
         outputTokens: result.usage?.outputTokens,
       },
     })
+
+    // Flush traces to Langfuse
+    await flushLangfuse()
 
     return new Response(JSON.stringify({
       content: result.text,
