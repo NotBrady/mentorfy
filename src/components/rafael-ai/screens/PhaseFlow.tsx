@@ -1438,7 +1438,7 @@ One session at your new rate pays for it 10x over. And you'll get there faster t
               {isCalendlyVariant ? (
                 /* Calendly embed */
                 <InlineWidget
-                  url={step.calendlyUrl || "https://calendly.com/brady-mentorfy/30min"}
+                  url={step.calendlyUrl || mentor.calendlyUrl}
                   styles={{ height: '700px', minWidth: '100%' }}
                   pageSettings={{
                     backgroundColor: 'FAF6F0',
@@ -1512,7 +1512,7 @@ One session at your new rate pays for it 10x over. And you'll get there faster t
                   {/* Checkout embed */}
                   <div style={{ backgroundColor: '#FFFFFF', padding: '4px' }}>
                     <WhopCheckoutEmbed
-                      planId={step.checkoutPlanId || "plan_joNwbFAIES0hH"}
+                      planId={step.checkoutPlanId || mentor.whopPlanId}
                       theme="light"
                       skipRedirect={true}
                       onComplete={handleCheckoutComplete}

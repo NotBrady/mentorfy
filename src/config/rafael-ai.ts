@@ -3,6 +3,8 @@
  * Central source of truth for all magic numbers, colors, and layout values
  */
 
+import { mentor } from '@/data/rafael-ai/mentor'
+
 // Timing constants (in milliseconds)
 export const TIMING = {
   // Thinking/response delays
@@ -153,14 +155,14 @@ export const PHASE_NAMES: Record<number, string> = {
 export const DEMO_COMMANDS = {
   'sell me': {
     embedType: 'checkout' as const,
-    checkoutPlanId: 'plan_joNwbFAIES0hH',
+    checkoutPlanId: mentor.whopPlanId,
   },
   'video': {
     embedType: 'video' as const,
-    videoUrl: 'https://rafaeltats.wistia.com/medias/4i06zkj7fg',
+    videoUrl: mentor.videos['welcome-vsl'].url,
   },
   'book me': {
     embedType: 'booking' as const,
-    calendlyUrl: 'https://calendly.com/brady-mentorfy/30min',
+    calendlyUrl: mentor.calendlyUrl,
   },
-} as const
+}

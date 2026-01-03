@@ -2,6 +2,10 @@ const VIDEO_URL = "https://rafaeltats.wistia.com/medias/4i06zkj7fg"
 
 export const mentor = {
   name: "Rafael Tats",
+
+  // Embed URLs - used for checkout and booking flows
+  whopPlanId: "plan_joNwbFAIES0hH",
+  calendlyUrl: "https://calendly.com/brady-mentorfy/30min",
   handle: "@rafaeltats",
   avatar: "/rafael.jpg",
   verified: true,
