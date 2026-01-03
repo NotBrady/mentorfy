@@ -6,7 +6,7 @@ import { ChatBar } from '../shared/ChatBar'
 import { VideoEmbed } from '../shared/VideoEmbed'
 import { WhopCheckoutEmbed } from '@whop/checkout/react'
 import { InlineWidget } from 'react-calendly'
-import { useUser } from '@/context/UserContext'
+import { useUser, useSessionId } from '@/context/UserContext'
 import { useAgent } from '@/hooks/useAgent'
 import { COLORS, TIMING, LAYOUT, PHASE_NAMES } from '@/config/rafael-ai'
 
@@ -893,6 +893,7 @@ export function AIChat({
   onContinue
 }: AIChatProps) {
   const { state, dispatch } = useUser()
+  const sessionId = useSessionId()
   const { sendMessage } = useAgent()
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
@@ -1221,6 +1222,7 @@ export function AIChat({
         continuePhase={currentPhase <= 4 ? currentPhase : undefined}
         continueReady={continueReady}
         onContinue={onContinue}
+        sessionId={sessionId || undefined}
       />
     </div>
   )

@@ -241,6 +241,13 @@ function VoiceRecordingBar({ onCancel, onSend, analyserNode }: VoiceRecordingBar
   )
 }
 
+interface UploadedFile {
+  url: string
+  filename: string
+  type: string
+  size: number
+}
+
 interface ChatBarProps {
   placeholder?: string
   onSend: (message: string) => void
@@ -248,6 +255,7 @@ interface ChatBarProps {
   continuePhase?: number
   onContinue?: () => void
   continueReady?: boolean
+  sessionId?: string
 }
 
 // Chat input bar with liquid glass style
@@ -257,22 +265,42 @@ export function ChatBar({
   disabled,
   continuePhase,
   onContinue,
-  continueReady = false
+  continueReady = false,
+  sessionId
 }: ChatBarProps) {
   const [value, setValue] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isUploading, setIsUploading] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasText = value.trim().length > 0
+  const hasContent = hasText || uploadedFiles.length > 0
 
   const handleSend = () => {
-    if (hasText && !disabled) {
-      onSend(value.trim())
+    if (hasContent && !disabled) {
+      // Build message with file references
+      let message = value.trim()
+
+      if (uploadedFiles.length > 0) {
+        const fileRefs = uploadedFiles.map(f => {
+          if (f.type.startsWith('image/')) {
+            return `![${f.filename}](${f.url})`
+          }
+          return `[${f.filename}](${f.url})`
+        }).join('\n')
+
+        message = message ? `${fileRefs}\n\n${message}` : fileRefs
+      }
+
+      onSend(message)
       setValue('')
+      setUploadedFiles([])
       const textarea = document.querySelector('textarea')
       if (textarea) (textarea as HTMLTextAreaElement).style.height = 'auto'
     }
@@ -289,6 +317,51 @@ export function ChatBar({
     setValue(e.target.value)
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'
+  }
+
+  // File upload handler
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !sessionId) return
+
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('sessionId', sessionId)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        console.error('Upload failed:', data.error)
+        return
+      }
+
+      setUploadedFiles(prev => [...prev, {
+        url: data.url,
+        filename: data.filename,
+        type: data.type,
+        size: data.size,
+      }])
+    } catch (err) {
+      console.error('Upload error:', err)
+    } finally {
+      setIsUploading(false)
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   // Start voice recording
@@ -495,6 +568,15 @@ export function ChatBar({
             </div>
           )}
 
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
           <div style={{
             width: '100%',
             maxWidth: '720px',
@@ -510,6 +592,78 @@ export function ChatBar({
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             opacity: disabled ? 0.6 : 1,
           }}>
+            {/* File previews */}
+            {uploadedFiles.length > 0 && (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap',
+              }}>
+                {uploadedFiles.map((file, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      position: 'relative',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#F0EBE4',
+                      border: '1px solid #E8E3DC',
+                    }}
+                  >
+                    {file.type.startsWith('image/') ? (
+                      <img
+                        src={file.url}
+                        alt={file.filename}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '60px',
+                        height: '60px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <path d="M14 2v6h6" />
+                        </svg>
+                        <span style={{ fontSize: '8px', color: '#666' }}>PDF</span>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeFile(idx)}
+                      style={{
+                        position: 'absolute',
+                        top: '2px',
+                        right: '2px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Text Area */}
             <textarea
               value={value}
@@ -540,26 +694,42 @@ export function ChatBar({
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              {/* Left side - Plus icon */}
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: '#F0EBE4',
-                border: '1px solid #E8E3DC',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#666',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </div>
+              {/* Left side - Plus icon (file upload) */}
+              <motion.div
+                onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
+                whileHover={!disabled && !isUploading ? { scale: 1.05 } : {}}
+                whileTap={!disabled && !isUploading ? { scale: 0.95 } : {}}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: isUploading ? ACCENT_COLOR : '#F0EBE4',
+                  border: isUploading ? 'none' : '1px solid #E8E3DC',
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isUploading ? '#fff' : '#666',
+                  cursor: disabled || isUploading ? 'default' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {isUploading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 12a9 9 0 11-6.219-8.56" />
+                    </svg>
+                  </motion.div>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                )}
+              </motion.div>
 
               {/* Center - Subtle watermark */}
               <div style={{
@@ -612,10 +782,10 @@ export function ChatBar({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: hasText && !disabled ? 'pointer' : 'default',
-                    backgroundColor: hasText ? ACCENT_COLOR : '#F0EBE4',
-                    border: hasText ? 'none' : '1px solid #E8E3DC',
-                    boxShadow: hasText
+                    cursor: hasContent && !disabled ? 'pointer' : 'default',
+                    backgroundColor: hasContent ? ACCENT_COLOR : '#F0EBE4',
+                    border: hasContent ? 'none' : '1px solid #E8E3DC',
+                    boxShadow: hasContent
                       ? `0 0 10px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.25)`
                       : '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
                     transition: 'all 0.2s ease',
@@ -626,7 +796,7 @@ export function ChatBar({
                     height="15"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={hasText ? '#FFFFFF' : '#666'}
+                    stroke={hasContent ? '#FFFFFF' : '#666'}
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
