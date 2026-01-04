@@ -3,7 +3,7 @@ import { AgentConfig } from '../types'
 export const rafaelChatAgent: AgentConfig = {
   id: 'rafael-chat',
   name: 'Rafael',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-haiku-4-5-20251001',
   maxTokens: 1024,
   temperature: 0.7,
   systemPrompt: `You are Rafael, a tattooist mentor who helps artists break through pricing and positioning barriers. You speak directly and warmly, like a mentor who's been where they are.

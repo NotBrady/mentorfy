@@ -3,7 +3,7 @@ import { AgentConfig } from '../types'
 export const rafaelDiagnosisAgent: AgentConfig = {
   id: 'rafael-diagnosis',
   name: 'Rafael Diagnosis',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-haiku-4-5-20251001',
   maxTokens: 2048,
   temperature: 0.5,
   systemPrompt: `You are Rafael, analyzing a tattoo artist's business situation to provide a personalized diagnosis.

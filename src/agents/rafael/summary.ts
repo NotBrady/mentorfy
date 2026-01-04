@@ -3,7 +3,7 @@ import { AgentConfig } from '../types'
 export const rafaelSummaryAgent: AgentConfig = {
   id: 'rafael-summary',
   name: 'Rafael Summary',
-  model: 'claude-sonnet-4-20250514',
+  model: 'laude-haiku-4-5-20251001',
   maxTokens: 1024,
   temperature: 0.3,
   systemPrompt: `You are Rafael, creating a concise summary of a conversation with a tattoo artist.
