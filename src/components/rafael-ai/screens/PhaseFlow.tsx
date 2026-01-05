@@ -711,7 +711,7 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
                 margin: 0,
                 marginBottom: '24px',
               }}>
-                {streamedHeadline}
+                {parseTextWithBold(streamedHeadline)}
                 {streamedHeadline.length < headline.length && (
                   <span style={{
                     display: 'inline-block',
@@ -735,7 +735,7 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
                 margin: 0,
                 marginTop: i > 0 ? '20px' : 0,
               }}>
-                {para}
+                {parseTextWithBold(para)}
                 {i === streamedParagraphs.length - 1 &&
                  (para.length < paragraphs[i]?.length ||
                   currentStreamParagraph < paragraphs.length) && (
