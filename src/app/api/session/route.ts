@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { db, Session } from '@/lib/db'
 import { getContainerId } from '@/lib/supermemory'
 
-// POST /api/session - create a new session
+// POST /api/session - create a new session (for authenticated users)
 export async function POST(req: Request) {
   try {
-    const { clerk_org_id } = await req.json()
+    const { clerk_org_id, clerk_user_id, context } = await req.json()
 
     if (!clerk_org_id) {
       return NextResponse.json({ error: 'clerk_org_id required' }, { status: 400 })
@@ -19,9 +19,10 @@ export async function POST(req: Request) {
       .insert({
         id: sessionId,
         clerk_org_id,
+        clerk_user_id: clerk_user_id || null,
         supermemory_container: supermemoryContainer,
         status: 'active',
-        context: {},
+        context: context || {},
       })
       .select()
       .single()
