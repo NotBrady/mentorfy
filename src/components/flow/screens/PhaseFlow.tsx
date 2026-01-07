@@ -1499,7 +1499,6 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
         if (currentStepIndex > 0) {
           const newStep = currentStepIndex - 1
           setCurrentStepIndex(newStep)
-          dispatch({ type: 'SET_STEP', payload: newStep })
         } else {
           onBack?.()
         }
@@ -1510,7 +1509,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
         backHandlerRef.current = null
       }
     }
-  }, [backHandlerRef, currentStepIndex, onBack, level, dispatch])
+  }, [backHandlerRef, currentStepIndex, onBack, level])
 
   if (!level) {
     return <div>Level not found</div>

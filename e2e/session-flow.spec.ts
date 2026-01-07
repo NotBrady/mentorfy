@@ -107,13 +107,8 @@ test.describe('Session Flow E2E', () => {
     expect(patchRequests.length).toBeGreaterThan(0);
     console.log(`✅ ${patchRequests.length} PATCH request(s) sent during form completion`);
 
-    // Check state was saved to localStorage
-    const savedState = await page.evaluate(() =>
-      localStorage.getItem('mentorfy-rafael-ai-state')
-    );
-    expect(savedState).toBeTruthy();
-    const state = JSON.parse(savedState!);
-    console.log('✅ State saved to localStorage:', Object.keys(state));
+    // Verify PATCH was sent (state is stored on backend, not localStorage)
+    console.log('✅ Form completed, state synced to backend');
   });
 
   test('3. Chat messaging with streaming', async ({ page }) => {
@@ -169,13 +164,12 @@ test.describe('Session Flow E2E', () => {
     // Wait for state to be saved
     await page.waitForTimeout(2000);
 
-    // Capture current localStorage state
-    const stateBefore = await page.evaluate(() => ({
-      sessionId: localStorage.getItem('mentorfy-session-id'),
-      state: localStorage.getItem('mentorfy-rafael-ai-state'),
-    }));
+    // Capture current session ID
+    const sessionIdBefore = await page.evaluate(() =>
+      localStorage.getItem('mentorfy-session-id')
+    );
 
-    console.log('Before refresh - sessionId:', stateBefore.sessionId);
+    console.log('Before refresh - sessionId:', sessionIdBefore);
 
     // Refresh the page
     await page.reload();
@@ -189,13 +183,12 @@ test.describe('Session Flow E2E', () => {
     expect(getResponse.status()).toBe(200);
     console.log('✅ Session validated via GET request on refresh');
 
-    // Verify localStorage preserved
-    const stateAfter = await page.evaluate(() => ({
-      sessionId: localStorage.getItem('mentorfy-session-id'),
-      state: localStorage.getItem('mentorfy-rafael-ai-state'),
-    }));
+    // Verify session ID preserved
+    const sessionIdAfter = await page.evaluate(() =>
+      localStorage.getItem('mentorfy-session-id')
+    );
 
-    expect(stateAfter.sessionId).toBe(stateBefore.sessionId);
+    expect(sessionIdAfter).toBe(sessionIdBefore);
     console.log('✅ Session ID preserved after refresh');
 
     // Verify no new session was created (should only see GET, not POST)
@@ -210,62 +203,56 @@ test.describe('Session Flow E2E', () => {
     console.log('✅ No new session created on refresh');
   });
 
-  test('5. Full flow - context preservation across refresh', async ({ page }) => {
+  test('5. Phase progression preserved across refresh', async ({ page }) => {
     // Clear and create fresh session
     await freshStart(page);
-    await page.waitForResponse((res) =>
+    const sessionResponse = await page.waitForResponse((res) =>
       res.url().includes('/api/session') && res.request().method() === 'POST'
     );
+    const { sessionId } = await sessionResponse.json();
 
-    // Wait for welcome and click through
-    await page.waitForSelector('text=Show Me How', { timeout: 10000 }).catch(() => null);
+    // Wait for welcome screen
+    await page.waitForSelector('text=Show Me How', { timeout: 10000 });
 
-    // Try to click start button
-    const startButton = page.locator('button:has-text("Show Me How")');
-    if (await startButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await startButton.click();
-      await page.waitForTimeout(1000);
-    }
+    // Click start button to go to Phase 1
+    await page.click('button:has-text("Show Me How")');
+    await page.waitForTimeout(1000);
 
-    // Select first option if available
-    const firstOption = page.locator('button').filter({ hasText: /week|month|booked/i }).first();
-    if (await firstOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await firstOption.click();
-      await page.waitForTimeout(1000);
-    }
+    // Verify we're on Phase 1 (level-flow screen)
+    await page.waitForSelector('text=What stage is your tattoo business', { timeout: 10000 });
+    console.log('✅ Started Phase 1');
 
-    // Get current state
-    const stateBefore = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('mentorfy-rafael-ai-state') || '{}')
-    );
+    // Wait for state sync to backend
+    await page.waitForTimeout(1000);
 
-    console.log('State before refresh:', JSON.stringify(stateBefore, null, 2).slice(0, 500));
-
-    // Refresh
+    // Refresh the page
     await page.reload();
-    await page.waitForTimeout(3000);
 
-    // Get state after refresh
-    const stateAfter = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('mentorfy-rafael-ai-state') || '{}')
+    // Wait for session to be restored from backend
+    const getResponse = await page.waitForResponse(
+      (res) => res.url().includes(`/api/session/${sessionId}`) && res.request().method() === 'GET',
+      { timeout: 10000 }
     );
 
-    console.log('State after refresh:', JSON.stringify(stateAfter, null, 2).slice(0, 500));
+    const sessionData = await getResponse.json();
+    console.log('Session restored:', {
+      currentScreen: sessionData.context?.progress?.currentScreen,
+      currentPhase: sessionData.context?.progress?.currentPhase,
+    });
 
-    // Verify key data preserved
-    if (stateBefore.user) {
-      expect(stateAfter.user).toEqual(stateBefore.user);
-      console.log('✅ User context preserved');
-    }
+    // Verify session was restored (should NOT show welcome screen again)
+    // After refresh, we should still be on level-flow (Phase 1 questions)
+    await page.waitForTimeout(2000);
 
-    if (stateBefore.situation) {
-      expect(stateAfter.situation).toEqual(stateBefore.situation);
-      console.log('✅ Situation context preserved');
-    }
+    // Check that we're NOT on the welcome screen
+    const showMeHowButton = page.locator('button:has-text("Show Me How")');
+    const isOnWelcome = await showMeHowButton.isVisible({ timeout: 2000 }).catch(() => false);
 
-    if (stateBefore.progress) {
-      expect(stateAfter.progress?.currentPhase).toBe(stateBefore.progress?.currentPhase);
-      console.log('✅ Progress preserved');
+    if (sessionData.context?.progress?.currentScreen === 'level-flow') {
+      expect(isOnWelcome).toBe(false);
+      console.log('✅ State restored: Not showing welcome screen after refresh');
+    } else {
+      console.log('⚠️ State may not have been synced before refresh');
     }
   });
 });

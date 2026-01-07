@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, MutableRefObject, use } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { UserButton, SignedIn, SignedOut, SignIn, useClerk } from '@clerk/nextjs'
-import { UserProvider, useUser } from '@/context/UserContext'
+import { UserProvider, useUserState, useUserDispatch } from '@/context/UserContext'
 import { LandingPage } from '@/components/flow/screens/LandingPage'
 import { PhaseFlow } from '@/components/flow/screens/PhaseFlow'
 import { MentorAvatar } from '@/components/flow/shared/MentorAvatar'
@@ -119,7 +119,8 @@ function LevelCompleteScreen({ phaseNumber, flow }: { phaseNumber: number; flow:
 }
 
 function FlowContent({ flow }: { flow: FlowDefinition }) {
-  const { state, dispatch } = useUser()
+  const state = useUserState()
+  const dispatch = useUserDispatch()
   const { gatePhaseTransition, showAuthWall } = useAuthGate()
   const { openSignIn } = useClerk()
   const [arrowReady, setArrowReady] = useState(false)
@@ -176,8 +177,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
       setTimeout(() => {
         // Set panel to 0 FIRST before changing screen
         setPanel(0)
-        // Mark phase complete (this increments currentPhase)
-        dispatch({ type: 'COMPLETE_PHASE', payload: currentPhaseNumber })
+        // Phase is already marked complete via completeStep in PhaseFlow
         // Reset arrow state for the new cycle
         setArrowReady(false)
         // Go to Experience Shell, Chat panel (panel 0)
@@ -202,8 +202,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
 
       // After showing the celebration, transition to chat
       setTimeout(() => {
-        // Complete the phase (this increments currentPhase)
-        dispatch({ type: 'COMPLETE_PHASE', payload: currentPhaseNumber })
+        // Phase is already marked complete via completeStep in PhaseFlow
         setArrowReady(false)
         // Switch to chat panel
         setPanel(0)

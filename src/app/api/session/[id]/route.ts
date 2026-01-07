@@ -56,7 +56,16 @@ export async function PATCH(req: Request, context: RouteContext) {
 
   // Deep merge context and answers
   const mergedContext = body.context
-    ? { ...existing.context, ...body.context }
+    ? {
+        ...existing.context,
+        ...body.context,
+        // Deep merge known nested objects
+        situation: { ...existing.context?.situation, ...body.context?.situation },
+        phase2: { ...existing.context?.phase2, ...body.context?.phase2 },
+        phase3: { ...existing.context?.phase3, ...body.context?.phase3 },
+        phase4: { ...existing.context?.phase4, ...body.context?.phase4 },
+        progress: { ...existing.context?.progress, ...body.context?.progress },
+      }
     : existing.context
   const mergedAnswers = body.answers
     ? { ...existing.answers, ...body.answers }
