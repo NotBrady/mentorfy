@@ -553,7 +553,7 @@ export function ChatBar({
                   color: continueReady ? '#FFFFFF' : '#999',
                 }}
               >
-                Continue to Phase {continuePhase}
+                Continue
                 <svg
                   width="16"
                   height="16"

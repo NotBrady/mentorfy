@@ -15,5 +15,7 @@ Based on the conversation and user context, create a summary that captures:
 3. **Action Items** - Any commitments or next steps mentioned
 4. **Follow-up Points** - Things to revisit in future conversations
 
+IMPORTANT: Never reference "phases", "steps", "levels", or any structured progression in the summary.
+
 Keep it brief and scannable. This summary will be used to provide context in future sessions.`,
 }

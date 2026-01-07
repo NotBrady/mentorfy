@@ -7,6 +7,7 @@ import { getAgent } from '@/agents/registry'
 import { createTrace, flushLangfuse } from '@/lib/langfuse'
 import { chatLimiter, checkRateLimit, rateLimitResponse, getIdentifier } from '@/lib/ratelimit'
 import { getAvailableEmbedsFromConfig, type AvailableEmbeds } from '@/lib/embed-resolver'
+import { sanitizeContextForAI } from '@/lib/context-sanitizer'
 import { getFlow } from '@/data/flows'
 import { getRafaelChatPrompt } from '@/agents/rafael/chat'
 import type { EmbedData } from '@/types'
@@ -207,10 +208,12 @@ export async function POST(req: Request) {
       : []
 
     // Build context from session + memories
+    // Sanitize context to remove phase/step references before sending to AI
     const contextParts: string[] = []
+    const sanitizedContext = sanitizeContextForAI(sessionData.context)
 
-    if (Object.keys(sessionData.context).length > 0) {
-      contextParts.push(`User context: ${JSON.stringify(sessionData.context)}`)
+    if (Object.keys(sanitizedContext).length > 0) {
+      contextParts.push(`User context: ${JSON.stringify(sanitizedContext)}`)
     }
 
     if (memories.length > 0) {

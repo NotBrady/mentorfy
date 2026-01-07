@@ -123,15 +123,14 @@ const formatHardestPart = (val: string): string => {
   return map[val] || val || 'the content struggle'
 }
 
-// Generate dynamic phase completion message
+// Generate dynamic transition message (without mentioning phases/steps)
 function generatePhaseCompleteMessage(currentPhase: number, state: any): string {
   const name = state.user?.name?.split(' ')[0] || 'there'
   const { situation, phase2, phase3 } = state
 
   // currentPhase is the NEXT phase (after completion, it increments)
-  // So currentPhase 2 means Phase 1 was just completed
   switch (currentPhase) {
-    case 2: // Just completed Phase 1
+    case 2: // Just completed diagnosis
       return `${name}, I see you.
 
 You're ${formatBookingStatus(situation?.bookingStatus)}. Charging ${formatDayRate(situation?.dayRate)}. And the thing holding you back? ${formatBlocker(situation?.blocker)}.
@@ -142,18 +141,18 @@ When I asked you to be honest, you said:
 
 That's the block we're going to break.
 
-**Here's what's next:**
+**Here's what we're going to cover:**
 
-- **Phase 2**: Get booked without going viral
-- **Phase 3**: The 30-minute content system
-- **Phase 4**: Double your revenue
+- Getting booked without going viral
+- A 30-minute content system
+- Doubling your revenue
 
-After Phase 4, I have something to show you.
+And then I have something to show you.
 
 Ready?`
 
-    case 3: // Just completed Phase 2
-      return `Phase 2 done. You're seeing it now — chasing views is the wrong game.
+    case 3: // Just completed views mindset section
+      return `You're seeing it now — chasing views is the wrong game.
 
 You told me you check ${formatCheckFirst(phase2?.checkFirst)} after posting. And you thought if you had 100k followers, ${formatHundredKFollowers(phase2?.hundredKFollowers)}.
 
@@ -163,17 +162,17 @@ That belief was costing you. Now you know better.
 
 Questions first, or ready to keep going?`
 
-    case 4: // Just completed Phase 3
-      return `Phase 3 done. You've got the system now.
+    case 4: // Just completed content system section
+      return `You've got the system now.
 
 You said the hardest part of content was ${formatHardestPart(phase3?.hardestPart)}. That ends today.
 
-**One phase left:** pricing. This is where everything clicks.
+**One more thing to cover:** pricing. This is where everything clicks.
 
 You ready to talk about money?`
 
-    case 5: // Just completed Phase 4 (all done)
-      return `You made it through all 4 phases, ${name}.
+    case 5: // Just completed pricing section (all done)
+      return `You made it through everything, ${name}.
 
 You came in ${formatBookingStatus(situation?.bookingStatus)} and charging ${formatDayRate(situation?.dayRate)}. You told me the thing holding you back was ${formatBlocker(situation?.blocker)}.
 
@@ -190,9 +189,9 @@ I'm here whenever you want to chat. What's on your mind?`
   }
 }
 
-// Phase divider component
+// Section divider component (no phase/step language)
 function PhaseDivider({ phaseNumber }: { phaseNumber: number }) {
-  const phaseName = PHASE_NAMES[phaseNumber] || `Phase ${phaseNumber}`
+  const phaseName = PHASE_NAMES[phaseNumber] || 'Section'
 
   return (
     <motion.div
@@ -225,7 +224,7 @@ function PhaseDivider({ phaseNumber }: { phaseNumber: number }) {
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
         }}>
-          Phase {phaseNumber} Complete
+          Complete
         </div>
         <div style={{
           fontFamily: "'Lora', Charter, Georgia, serif",

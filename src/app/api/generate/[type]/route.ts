@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getAgent } from '@/agents/registry'
 import { createTrace, flushLangfuse } from '@/lib/langfuse'
 import { generateLimiter, checkRateLimit, rateLimitResponse, getIdentifier } from '@/lib/ratelimit'
+import { sanitizeContextForAI } from '@/lib/context-sanitizer'
 
 const anthropic = createAnthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -82,8 +83,9 @@ export async function POST(req: Request, context: RouteContext) {
       input: { context: session.context, conversationHistory },
     })
 
-    // Build user message with context
-    const contextStr = JSON.stringify(session.context, null, 2)
+    // Build user message with sanitized context (removes phase/step references)
+    const sanitizedContext = sanitizeContextForAI(session.context)
+    const contextStr = JSON.stringify(sanitizedContext, null, 2)
     const historyStr = conversationHistory
       ? `\n\nConversation history:\n${conversationHistory}`
       : ''

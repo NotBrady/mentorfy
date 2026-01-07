@@ -103,7 +103,7 @@ function LevelCompleteScreen({ phaseNumber, flow }: { phaseNumber: number; flow:
           letterSpacing: '0.1em',
           marginBottom: 8,
         }}>
-          Phase {phaseNumber} Complete
+          Complete
         </div>
         <div style={{
           fontFamily: "'Lora', Charter, Georgia, serif",
