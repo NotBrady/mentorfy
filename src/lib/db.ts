@@ -15,7 +15,10 @@ export interface Session {
   name: string | null
   supermemory_container: string
   status: 'active' | 'completed' | 'abandoned'
-  context: Record<string, any>
+  flow_id: string | null
+  current_step_id: string | null
+  answers: Record<string, any>
+  context: Record<string, any>  // Deprecated: kept for rollback, use answers instead
   created_at: string
   updated_at: string
 }
