@@ -130,6 +130,15 @@ function RafaelAIContent() {
   // Ref for the Chat Panel's scroll container - passed to AIChat for scroll control
   const chatPanelScrollRef = useRef<HTMLDivElement>(null)
 
+  // Wait for session to load before rendering - prevents flash of welcome screen
+  if (state.sessionLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </div>
+    )
+  }
+
   // Screen states: 'welcome', 'level-flow', 'experience'
   const currentScreen = state.progress.currentScreen
   const currentPhaseNumber = state.progress.currentPhase

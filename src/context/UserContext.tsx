@@ -2,16 +2,12 @@
 
 import { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useRef } from 'react'
 
-const STORAGE_KEY = 'mentorfy-rafael-ai-state'
 const SESSION_KEY = 'mentorfy-session-id'
 const CLERK_ORG_ID = 'org_35wDDMLUgC1nZZLkDLtZ3A8TbJY' // MVP hardcode
 
 const initialState = {
   sessionId: null as string | null,
   sessionLoading: true,
-
-  // Returning user detection
-  returningUser: null as { existingSessionId: string } | null,
 
   user: {
     name: "",
@@ -103,7 +99,6 @@ type Action =
   | { type: 'ADD_MESSAGE'; payload: any }
   | { type: 'SET_USER'; payload: any }
   | { type: 'UPDATE_VISIT' }
-  | { type: 'LOAD_STATE'; payload: State }
   | { type: 'RESET' }
   | { type: 'SET_PANEL'; payload: number }
   | { type: 'SET_PROFILE_COMPLETE'; payload: boolean }
@@ -111,10 +106,9 @@ type Action =
   | { type: 'SET_SESSION'; payload: { sessionId: string; loading?: boolean } }
   | { type: 'SET_SESSION_LOADING'; payload: boolean }
   | { type: 'HYDRATE_FROM_BACKEND'; payload: any }
-  | { type: 'SET_RETURNING_USER'; payload: { existingSessionId: string } }
-  | { type: 'CLEAR_RETURNING_USER' }
 
 function reducer(state: State, action: Action): State {
+
   switch (action.type) {
     case 'SET_SCREEN':
       return {
@@ -263,12 +257,6 @@ function reducer(state: State, action: Action): State {
         firstVisit: state.firstVisit || new Date().toISOString()
       }
 
-    case 'LOAD_STATE':
-      return {
-        ...action.payload,
-        lastVisit: new Date().toISOString()
-      }
-
     case 'RESET':
       return initialState
 
@@ -318,7 +306,6 @@ function reducer(state: State, action: Action): State {
         ...state,
         sessionId: backendData.id,
         sessionLoading: false,
-        returningUser: null, // Clear any pending returning user state
         user: {
           ...state.user,
           name: backendData.name || state.user.name,
@@ -334,18 +321,6 @@ function reducer(state: State, action: Action): State {
       }
     }
 
-    case 'SET_RETURNING_USER':
-      return {
-        ...state,
-        returningUser: { existingSessionId: action.payload.existingSessionId }
-      }
-
-    case 'CLEAR_RETURNING_USER':
-      return {
-        ...state,
-        returningUser: null
-      }
-
     default:
       return state
   }
@@ -354,7 +329,7 @@ function reducer(state: State, action: Action): State {
 type ContextValue = {
   state: State
   dispatch: React.Dispatch<Action>
-  syncToBackend: () => Promise<{ returning?: boolean; existingSessionId?: string } | null>
+  syncToBackend: () => Promise<void>
   switchToSession: (sessionId: string) => Promise<boolean>
 }
 
@@ -365,42 +340,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Sync context to backend session
   const syncToBackend = useCallback(async () => {
-    if (!state.sessionId) return null
+    if (!state.sessionId) return
+
+    const payload = {
+      name: state.user.name || undefined,
+      email: state.user.email || undefined,
+      phone: state.user.phone || undefined,
+      context: {
+        situation: state.situation,
+        phase2: state.phase2,
+        phase3: state.phase3,
+        phase4: state.phase4,
+        progress: state.progress,
+      }
+    }
 
     try {
       const res = await fetch(`/api/session/${state.sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: state.user.name || undefined,
-          email: state.user.email || undefined,
-          phone: state.user.phone || undefined,
-          context: {
-            situation: state.situation,
-            phase2: state.phase2,
-            phase3: state.phase3,
-            phase4: state.phase4,
-            progress: state.progress,
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!res.ok) {
-        console.error('Failed to sync to backend')
-        return null
+        console.error('[Sync] Failed to sync to backend:', res.status, res.statusText)
       }
-
-      const data = await res.json()
-
-      // Handle returning user detection
-      if (data.returning && data.existingSessionId) {
-        return { returning: true, existingSessionId: data.existingSessionId }
-      }
-
-      return null
     } catch (e) {
-      console.error('Sync error:', e)
-      return null
+      console.error('[Sync] Error:', e)
     }
   }, [state.sessionId, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress])
 
@@ -457,9 +423,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json()
 
-      // Clear local state storage (will be repopulated from backend)
-      localStorage.removeItem(STORAGE_KEY)
-
       // Update session ID in localStorage
       localStorage.setItem(SESSION_KEY, sessionId)
 
@@ -473,41 +436,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Load from localStorage on mount
+  // Initialize backend session on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        // Migrate old state property names (currentLevel → currentPhase, completedLevels → completedPhases)
-        if (parsed.progress) {
-          if ('currentLevel' in parsed.progress && !('currentPhase' in parsed.progress)) {
-            parsed.progress.currentPhase = parsed.progress.currentLevel
-            delete parsed.progress.currentLevel
-          }
-          if ('completedLevels' in parsed.progress && !('completedPhases' in parsed.progress)) {
-            parsed.progress.completedPhases = parsed.progress.completedLevels
-            delete parsed.progress.completedLevels
-          }
-        }
-        dispatch({ type: 'LOAD_STATE', payload: parsed })
-      } catch (e) {
-        console.error('Failed to load state:', e)
-      }
-    } else {
-      dispatch({ type: 'UPDATE_VISIT' })
-    }
-
-    // Initialize backend session
     initSession()
   }, [initSession])
-
-  // Save to localStorage on state change
-  useEffect(() => {
-    if (state.firstVisit) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    }
-  }, [state])
 
   // Persist sessionId to localStorage when it changes
   useEffect(() => {
@@ -516,29 +448,32 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [state.sessionId])
 
-  // Auto-sync to backend when phases complete or user info changes
+  // Auto-sync to backend when any context changes
   const lastSyncedRef = useRef<string>('')
   useEffect(() => {
     if (!state.sessionId || state.sessionLoading) return
 
-    // Create a sync key from data that should trigger sync
+    // Create a sync key from all data that should trigger sync
     const syncKey = JSON.stringify({
       user: state.user,
-      completedPhases: state.progress.completedPhases,
-      currentPhase: state.progress.currentPhase
+      situation: state.situation,
+      phase2: state.phase2,
+      phase3: state.phase3,
+      phase4: state.phase4,
+      progress: state.progress,
     })
 
     // Don't sync if nothing changed
     if (syncKey === lastSyncedRef.current) return
-    lastSyncedRef.current = syncKey
 
     // Debounce sync
     const timer = setTimeout(() => {
+      lastSyncedRef.current = syncKey // Only update after sync starts
       syncToBackend()
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [state.sessionId, state.sessionLoading, state.user, state.progress.completedPhases, state.progress.currentPhase, syncToBackend])
+  }, [state.sessionId, state.sessionLoading, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress, syncToBackend])
 
   return (
     <UserContext.Provider value={{ state, dispatch, syncToBackend, switchToSession }}>

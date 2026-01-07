@@ -1515,12 +1515,21 @@ interface PhaseFlowProps {
 export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, backHandlerRef }: PhaseFlowProps) {
   const { state, dispatch } = useUser()
   const level = phases.find(l => l.id === levelId)
-  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+
+  // Initialize step from persisted state if we're on the same phase, otherwise start at 0
+  const initialStep = state.progress.currentPhase === levelId ? state.progress.currentStep : 0
+  const [currentStepIndex, setCurrentStepIndex] = useState(initialStep)
 
   // Reset step index when levelId changes (new phase)
   useEffect(() => {
-    setCurrentStepIndex(0)
-  }, [levelId])
+    if (state.progress.currentPhase === levelId) {
+      // Restore persisted step for current phase
+      setCurrentStepIndex(state.progress.currentStep)
+    } else {
+      // New phase, start from 0
+      setCurrentStepIndex(0)
+    }
+  }, [levelId, state.progress.currentPhase, state.progress.currentStep])
 
   // Expose back handler to parent via ref (for stationary header control)
   // Must be before any early returns to satisfy React hooks rules
@@ -1571,6 +1580,8 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const goToNextStep = () => {
     if (currentStepIndex < level.steps.length - 1) {
       setCurrentStepIndex(prev => prev + 1)
+      // Persist step progress to backend
+      dispatch({ type: 'ADVANCE_STEP' })
     } else {
       // Level complete
       dispatch({ type: 'COMPLETE_PHASE', payload: levelId })
@@ -1580,7 +1591,10 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
 
   const goToPreviousStep = () => {
     if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1)
+      const newStep = currentStepIndex - 1
+      setCurrentStepIndex(newStep)
+      // Persist step progress to backend
+      dispatch({ type: 'SET_STEP', payload: newStep })
     } else {
       onBack?.()
     }
