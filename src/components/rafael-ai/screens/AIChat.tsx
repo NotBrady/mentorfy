@@ -8,7 +8,7 @@ import { ChatBar } from '../shared/ChatBar'
 import { VideoEmbed } from '../shared/VideoEmbed'
 import { WhopCheckoutEmbed } from '@whop/checkout/react'
 import { InlineWidget } from 'react-calendly'
-import { useUser, useSessionId } from '@/context/UserContext'
+import { useUserState, useSessionId } from '@/context/UserContext'
 import { COLORS, TIMING, LAYOUT, PHASE_NAMES } from '@/config/rafael-ai'
 import type { EmbedData } from '@/types'
 
@@ -926,7 +926,7 @@ export function AIChat({
   continueReady,
   onContinue
 }: AIChatProps) {
-  const { state, dispatch } = useUser()
+  const state = useUserState()
   const sessionId = useSessionId()
 
   // useChat for API communication with tool support
@@ -970,15 +970,8 @@ export function AIChat({
   useEffect(() => {
     if (initializedRef.current) return
     initializedRef.current = true
-
-    // Load any existing messages from conversation history
-    const existingMessages: Message[] = (state.conversation || []).map((msg: any, i: number) => ({
-      id: `existing-${i}`,
-      role: msg.role,
-      content: msg.content
-    }))
-
-    setLocalMessages(existingMessages)
+    // Chat messages start fresh each session (not persisted)
+    setLocalMessages([])
   }, [])
 
   // Sync streaming content from useChat to local messages
@@ -1005,23 +998,15 @@ export function AIChat({
     ))
   }, [chatMessages, streamingMessageId])
 
-  // Persist completed assistant messages to reducer
+  // Track completed assistant messages for UI updates
   const lastPersistedCountRef = useRef(0)
   useEffect(() => {
-    // Only persist when we have new completed messages
+    // Track when we have new completed messages
     const assistantMessages = chatMessages.filter(m => m.role === 'assistant')
     if (assistantMessages.length <= lastPersistedCountRef.current) return
-
-    const newMessages = assistantMessages.slice(lastPersistedCountRef.current)
     lastPersistedCountRef.current = assistantMessages.length
-
-    // Only persist when not loading (i.e., streaming is complete)
-    if (!isChatLoading) {
-      for (const msg of newMessages) {
-        dispatch({ type: 'ADD_MESSAGE', payload: { role: 'assistant', content: getMessageText(msg) } })
-      }
-    }
-  }, [chatMessages, isChatLoading, dispatch])
+    // Chat messages no longer persisted to session - managed by useChat
+  }, [chatMessages, isChatLoading])
 
   // Handle phase completion - add divider and streaming message when phase changes
   useEffect(() => {
@@ -1176,7 +1161,6 @@ export function AIChat({
     setFocusMessageId(userMessageId)
     setStreamingMessageId(assistantMessageId)
     setIsTyping(true)
-    dispatch({ type: 'ADD_MESSAGE', payload: userMessage })
 
     await new Promise(resolve => setTimeout(resolve, TIMING.RESPONSE_DELAY))
 
@@ -1204,7 +1188,7 @@ export function AIChat({
           : msg
       ))
     }
-  }, [dispatch, sendMessage])
+  }, [sendMessage, sessionId])
 
   const handleStreamingComplete = useCallback(() => {
     setStreamingMessageId(null)

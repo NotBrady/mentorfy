@@ -1,434 +1,177 @@
 'use client'
 
-import { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useReducer } from 'react'
 
 const SESSION_KEY = 'mentorfy-session-id'
 const CLERK_ORG_ID = 'org_35wDDMLUgC1nZZLkDLtZ3A8TbJY' // MVP hardcode
 
-const initialState = {
-  sessionId: null as string | null,
-  sessionLoading: true,
-
-  user: {
-    name: "",
-    email: "",
-    phone: "",
-    createdAt: null as string | null
-  },
-
-  // Timeline state for horizontal navigation
-  timeline: {
-    currentPanel: 0, // 0=past, 1=present (only 2 panels)
-    profileComplete: false
-  },
-
-  situation: {
-    bookingStatus: "",
-    dayRate: "",
-    goal: "",
-    blocker: "",
-    confession: "",
-    // Legacy fields
-    experience: "",
-    currentIncome: "",
-    biggestChallenge: "",
-    longAnswer: ""
-  },
-
-  // Phase 2: Views Don't Matter
-  phase2: {
-    checkFirst: "",
-    hundredKFollowers: "",
-    postWorked: ""
-  },
-
-  // Phase 3: Content Creation
-  phase3: {
-    timeOnContent: "",
-    hardestPart: "",
-    contentCreatorIdentity: ""
-  },
-
-  // Phase 4: Pricing
-  phase4: {
-    lastPriceRaise: "",
-    tooExpensiveResponse: "",
-    pricingFear: ""
-  },
-
-  // Legacy fields for backwards compatibility
-  level2: {
-    pricingFeeling: "",
-    raisedPrices: "",
-    pricingStory: ""
-  },
-
-  level3: {
-    sellingFeeling: "",
-    lostSale: ""
-  },
-
-  progress: {
-    currentScreen: "welcome",
-    currentPhase: 1,
-    currentStep: 0,
-    completedPhases: [] as number[],
-    videosWatched: [] as string[],
-    justCompletedLevel: false
-  },
-
-  memory: [] as { date: string; insight: string }[],
-
-  conversation: [] as any[],
-
-  lastVisit: null as string | null,
-  firstVisit: null as string | null
+interface Session {
+  id: string
+  flow_id: string | null
+  current_step_id: string
+  answers: Record<string, any>
+  name: string | null
+  email: string | null
+  phone: string | null
+  status: string
 }
 
-type State = typeof initialState
+// UI-only state (not persisted to backend)
+interface UIState {
+  currentScreen: 'welcome' | 'level-flow' | 'experience'
+  currentPanel: number
+}
 
-type Action =
-  | { type: 'SET_SCREEN'; payload: string }
-  | { type: 'SET_ANSWER'; payload: { key: string; value: any } }
-  | { type: 'ADVANCE_STEP' }
-  | { type: 'SET_STEP'; payload: number }
-  | { type: 'COMPLETE_PHASE'; payload: number }
-  | { type: 'START_LEVEL' }
-  | { type: 'WATCH_VIDEO'; payload: string }
-  | { type: 'ADD_MEMORY'; payload: string }
-  | { type: 'ADD_MESSAGE'; payload: any }
-  | { type: 'SET_USER'; payload: any }
-  | { type: 'UPDATE_VISIT' }
-  | { type: 'RESET' }
+type UIAction =
+  | { type: 'SET_SCREEN'; payload: 'welcome' | 'level-flow' | 'experience' }
   | { type: 'SET_PANEL'; payload: number }
-  | { type: 'SET_PROFILE_COMPLETE'; payload: boolean }
-  | { type: 'SET_CURRENT_PHASE'; payload: number }
-  | { type: 'SET_SESSION'; payload: { sessionId: string; loading?: boolean } }
-  | { type: 'SET_SESSION_LOADING'; payload: boolean }
-  | { type: 'HYDRATE_FROM_BACKEND'; payload: any }
 
-function reducer(state: State, action: Action): State {
-
+function uiReducer(state: UIState, action: UIAction): UIState {
   switch (action.type) {
     case 'SET_SCREEN':
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          currentScreen: action.payload,
-          justCompletedLevel: false
-        }
-      }
-
-    case 'SET_ANSWER': {
-      const { key, value } = action.payload
-      const parts = key.split('.')
-      const section = parts[0]
-      const field = parts[1]
-
-      // Validate that section exists and is an object
-      const currentSection = (state as any)[section]
-      if (!currentSection || typeof currentSection !== 'object') {
-        console.warn(`SET_ANSWER: Invalid section "${section}" for key "${key}"`)
-        return state
-      }
-
-      // If no field specified and value is an object, merge into section
-      if (!field && typeof value === 'object' && value !== null) {
-        return {
-          ...state,
-          [section]: {
-            ...currentSection,
-            ...value
-          }
-        }
-      }
-
-      return {
-        ...state,
-        [section]: {
-          ...currentSection,
-          [field]: value
-        }
-      }
-    }
-
-    case 'ADVANCE_STEP':
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          currentStep: state.progress.currentStep + 1
-        }
-      }
-
-    case 'SET_STEP':
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          currentStep: action.payload
-        }
-      }
-
-    case 'COMPLETE_PHASE': {
-      const phaseId = action.payload
-      const completedPhases = state.progress.completedPhases.includes(phaseId)
-        ? state.progress.completedPhases
-        : [...state.progress.completedPhases, phaseId]
-
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          completedPhases,
-          currentPhase: phaseId + 1,
-          currentStep: 0,
-          justCompletedLevel: true
-          // Note: screen is set separately by the caller
-        }
-      }
-    }
-
-    case 'START_LEVEL':
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          currentScreen: 'level',
-          currentStep: 0,
-          justCompletedLevel: false
-        }
-      }
-
-    case 'WATCH_VIDEO': {
-      const videoKey = action.payload
-      const videosWatched = state.progress.videosWatched.includes(videoKey)
-        ? state.progress.videosWatched
-        : [...state.progress.videosWatched, videoKey]
-
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          videosWatched
-        }
-      }
-    }
-
-    case 'ADD_MEMORY':
-      return {
-        ...state,
-        memory: [
-          ...state.memory,
-          {
-            date: new Date().toISOString().split('T')[0],
-            insight: action.payload
-          }
-        ]
-      }
-
-    case 'ADD_MESSAGE':
-      return {
-        ...state,
-        conversation: [
-          ...state.conversation,
-          {
-            ...action.payload,
-            timestamp: new Date().toISOString()
-          }
-        ]
-      }
-
-    case 'SET_USER':
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          ...action.payload,
-          createdAt: state.user.createdAt || new Date().toISOString()
-        }
-      }
-
-    case 'UPDATE_VISIT':
-      return {
-        ...state,
-        lastVisit: new Date().toISOString(),
-        firstVisit: state.firstVisit || new Date().toISOString()
-      }
-
-    case 'RESET':
-      return initialState
-
+      return { ...state, currentScreen: action.payload }
     case 'SET_PANEL':
-      return {
-        ...state,
-        timeline: {
-          ...state.timeline,
-          currentPanel: action.payload
-        }
-      }
-
-    case 'SET_PROFILE_COMPLETE':
-      return {
-        ...state,
-        timeline: {
-          ...state.timeline,
-          profileComplete: action.payload
-        }
-      }
-
-    case 'SET_CURRENT_PHASE':
-      return {
-        ...state,
-        progress: {
-          ...state.progress,
-          currentPhase: action.payload
-        }
-      }
-
-    case 'SET_SESSION':
-      return {
-        ...state,
-        sessionId: action.payload.sessionId,
-        sessionLoading: action.payload.loading ?? false
-      }
-
-    case 'SET_SESSION_LOADING':
-      return {
-        ...state,
-        sessionLoading: action.payload
-      }
-
-    case 'HYDRATE_FROM_BACKEND': {
-      const backendData = action.payload
-      return {
-        ...state,
-        sessionId: backendData.id,
-        sessionLoading: false,
-        user: {
-          ...state.user,
-          name: backendData.name || state.user.name,
-          email: backendData.email || state.user.email,
-          phone: backendData.phone || state.user.phone,
-        },
-        // Merge backend context into local state if it exists
-        ...(backendData.context?.situation && { situation: { ...state.situation, ...backendData.context.situation } }),
-        ...(backendData.context?.phase2 && { phase2: { ...state.phase2, ...backendData.context.phase2 } }),
-        ...(backendData.context?.phase3 && { phase3: { ...state.phase3, ...backendData.context.phase3 } }),
-        ...(backendData.context?.phase4 && { phase4: { ...state.phase4, ...backendData.context.phase4 } }),
-        ...(backendData.context?.progress && { progress: { ...state.progress, ...backendData.context.progress } }),
-      }
-    }
-
+      return { ...state, currentPanel: action.payload }
     default:
       return state
   }
 }
 
-type ContextValue = {
-  state: State
-  dispatch: React.Dispatch<Action>
-  syncToBackend: () => Promise<void>
+interface UserContextValue {
+  session: Session | null
+  sessionLoading: boolean
+  uiState: UIState
+  dispatch: React.Dispatch<UIAction>
+  completeStep: (stepId: string, answer?: Record<string, any>) => Promise<void>
+  updateContact: (data: { name?: string; email?: string; phone?: string }) => Promise<void>
   switchToSession: (sessionId: string) => Promise<boolean>
 }
 
-const UserContext = createContext<ContextValue | null>(null)
+const UserContext = createContext<UserContextValue | null>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [session, setSession] = useState<Session | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(true)
 
-  // Sync context to backend session
-  const syncToBackend = useCallback(async () => {
-    if (!state.sessionId) return
+  // UI-only state with reducer
+  const [uiState, dispatch] = useReducer(uiReducer, {
+    currentScreen: 'welcome' as const,
+    currentPanel: 0,
+  })
 
-    const payload = {
-      name: state.user.name || undefined,
-      email: state.user.email || undefined,
-      phone: state.user.phone || undefined,
-      context: {
-        situation: state.situation,
-        phase2: state.phase2,
-        phase3: state.phase3,
-        phase4: state.phase4,
-        progress: state.progress,
-      }
-    }
+  // Initialize session on mount
+  useEffect(() => {
+    async function initSession() {
+      const savedSessionId = localStorage.getItem(SESSION_KEY)
 
-    try {
-      const res = await fetch(`/api/session/${state.sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      if (!res.ok) {
-        console.error('[Sync] Failed to sync to backend:', res.status, res.statusText)
-      }
-    } catch (e) {
-      console.error('[Sync] Error:', e)
-    }
-  }, [state.sessionId, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress])
-
-  // Initialize session - create or validate existing
-  const initSession = useCallback(async () => {
-    const savedSessionId = localStorage.getItem(SESSION_KEY)
-
-    if (savedSessionId) {
-      // Validate existing session
-      try {
-        const res = await fetch(`/api/session/${savedSessionId}`)
-        if (res.ok) {
-          const data = await res.json()
-          dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
-          return
+      if (savedSessionId) {
+        try {
+          const res = await fetch(`/api/session/${savedSessionId}`)
+          if (res.ok) {
+            const data = await res.json()
+            setSession(data)
+            // Restore UI state based on session progress
+            const phase = deriveCurrentPhase(data.current_step_id)
+            if (phase > 1 || data.current_step_id?.includes('complete')) {
+              dispatch({ type: 'SET_SCREEN', payload: 'experience' })
+            }
+            setSessionLoading(false)
+            return
+          }
+          localStorage.removeItem(SESSION_KEY)
+        } catch (e) {
+          console.error('Failed to validate session:', e)
+          localStorage.removeItem(SESSION_KEY)
         }
-        // Session not found, clear and create new
-        localStorage.removeItem(SESSION_KEY)
-      } catch (e) {
-        console.error('Failed to validate session:', e)
-        localStorage.removeItem(SESSION_KEY)
       }
+
+      // Create new session
+      try {
+        const res = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID, flow_id: 'rafael-ai' })
+        })
+        if (res.ok) {
+          const { sessionId } = await res.json()
+          localStorage.setItem(SESSION_KEY, sessionId)
+          // Fetch full session data
+          const sessionRes = await fetch(`/api/session/${sessionId}`)
+          if (sessionRes.ok) {
+            setSession(await sessionRes.json())
+          }
+        }
+      } catch (e) {
+        console.error('Session creation error:', e)
+      }
+      setSessionLoading(false)
     }
 
-    // Create new session
-    try {
-      const res = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID })
-      })
-      if (res.ok) {
-        const { sessionId } = await res.json()
-        localStorage.setItem(SESSION_KEY, sessionId)
-        dispatch({ type: 'SET_SESSION', payload: { sessionId, loading: false } })
-      } else {
-        console.error('Failed to create session')
-        dispatch({ type: 'SET_SESSION_LOADING', payload: false })
-      }
-    } catch (e) {
-      console.error('Session creation error:', e)
-      dispatch({ type: 'SET_SESSION_LOADING', payload: false })
-    }
+    initSession()
   }, [])
 
-  // Switch to an existing session (for returning users)
+  // Complete a step - server-as-truth
+  const completeStep = useCallback(async (stepId: string, answer?: Record<string, any>) => {
+    if (!session) return
+
+    try {
+      const res = await fetch('/api/flow/step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.id,
+          stepId,
+          answer,
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setSession(prev => prev ? {
+          ...prev,
+          current_step_id: data.currentStepId,
+          answers: data.answers,
+        } : null)
+      }
+    } catch (e) {
+      console.error('Step completion error:', e)
+    }
+  }, [session])
+
+  // Update contact info
+  const updateContact = useCallback(async (data: { name?: string; email?: string; phone?: string }) => {
+    if (!session) return
+
+    try {
+      const res = await fetch(`/api/session/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (res.ok) {
+        const updated = await res.json()
+        // Handle returning user redirect
+        if (updated.returning && updated.existingSessionId) {
+          await switchToSession(updated.existingSessionId)
+          return
+        }
+        setSession(updated)
+      }
+    } catch (e) {
+      console.error('Contact update error:', e)
+    }
+  }, [session])
+
+  // Switch to existing session
   const switchToSession = useCallback(async (sessionId: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/session/${sessionId}`)
-      if (!res.ok) {
-        console.error('Failed to fetch existing session')
-        return false
-      }
+      if (!res.ok) return false
 
       const data = await res.json()
-
-      // Update session ID in localStorage
       localStorage.setItem(SESSION_KEY, sessionId)
-
-      // Hydrate state from backend
-      dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
-
+      setSession(data)
       return true
     } catch (e) {
       console.error('Switch session error:', e)
@@ -436,47 +179,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Initialize backend session on mount
-  useEffect(() => {
-    initSession()
-  }, [initSession])
-
-  // Persist sessionId to localStorage when it changes
-  useEffect(() => {
-    if (state.sessionId) {
-      localStorage.setItem(SESSION_KEY, state.sessionId)
-    }
-  }, [state.sessionId])
-
-  // Auto-sync to backend when any context changes
-  const lastSyncedRef = useRef<string>('')
-  useEffect(() => {
-    if (!state.sessionId || state.sessionLoading) return
-
-    // Create a sync key from all data that should trigger sync
-    const syncKey = JSON.stringify({
-      user: state.user,
-      situation: state.situation,
-      phase2: state.phase2,
-      phase3: state.phase3,
-      phase4: state.phase4,
-      progress: state.progress,
-    })
-
-    // Don't sync if nothing changed
-    if (syncKey === lastSyncedRef.current) return
-
-    // Debounce sync
-    const timer = setTimeout(() => {
-      lastSyncedRef.current = syncKey // Only update after sync starts
-      syncToBackend()
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [state.sessionId, state.sessionLoading, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress, syncToBackend])
-
   return (
-    <UserContext.Provider value={{ state, dispatch, syncToBackend, switchToSession }}>
+    <UserContext.Provider value={{ session, sessionLoading, uiState, dispatch, completeStep, updateContact, switchToSession }}>
       {children}
     </UserContext.Provider>
   )
@@ -490,27 +194,73 @@ export function useUser() {
   return context
 }
 
-export function useUserState() {
-  const { state } = useUser()
-  return state
-}
-
-export function useUserDispatch() {
-  const { dispatch } = useUser()
-  return dispatch
+export function useSession() {
+  const { session, sessionLoading } = useUser()
+  return { session, sessionLoading }
 }
 
 export function useSessionId() {
-  const { state } = useUser()
-  return state.sessionId
+  const { session } = useUser()
+  return session?.id ?? null
 }
 
-export function useSyncToBackend() {
-  const { syncToBackend } = useUser()
-  return syncToBackend
+export function useCompleteStep() {
+  const { completeStep } = useUser()
+  return completeStep
 }
 
-export function useSwitchToSession() {
-  const { switchToSession } = useUser()
-  return switchToSession
+// Legacy exports for backward compatibility during migration
+export function useUserState() {
+  const { session, sessionLoading, uiState } = useUser()
+  // Map new session structure to old state structure for components still using it
+  return {
+    sessionId: session?.id ?? null,
+    sessionLoading,
+    user: {
+      name: session?.name ?? '',
+      email: session?.email ?? '',
+      phone: session?.phone ?? '',
+    },
+    situation: session?.answers?.situation ?? {},
+    phase2: session?.answers?.phase2 ?? {},
+    phase3: session?.answers?.phase3 ?? {},
+    phase4: session?.answers?.phase4 ?? {},
+    progress: {
+      currentScreen: uiState.currentScreen,
+      currentPhase: deriveCurrentPhase(session?.current_step_id),
+      currentStep: 0,
+      completedPhases: deriveCompletedPhases(session?.current_step_id),
+      videosWatched: [],
+      justCompletedLevel: false,
+    },
+    timeline: {
+      currentPanel: uiState.currentPanel,
+      profileComplete: false,
+    },
+  }
+}
+
+// Derive current phase from step ID
+function deriveCurrentPhase(stepId: string | null | undefined): number {
+  if (!stepId) return 1
+  const match = stepId.match(/^phase-(\d+)/)
+  return match ? parseInt(match[1], 10) : 1
+}
+
+// Derive completed phases from step ID
+function deriveCompletedPhases(stepId: string | null | undefined): number[] {
+  if (!stepId) return []
+  const match = stepId.match(/^phase-(\d+)-(start|complete)$/)
+  if (!match) return []
+  const phaseNum = parseInt(match[1], 10)
+  const state = match[2]
+  const completedCount = state === 'complete' ? phaseNum : phaseNum - 1
+  if (completedCount <= 0) return []
+  return Array.from({ length: completedCount }, (_, i) => i + 1)
+}
+
+// Legacy dispatch hook for UI-only actions (SET_SCREEN, SET_PANEL)
+export function useUserDispatch() {
+  const { dispatch } = useUser()
+  return dispatch
 }

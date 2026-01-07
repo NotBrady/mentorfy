@@ -3,7 +3,7 @@
 import { useState, useRef, MutableRefObject } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { UserButton, SignedIn, SignedOut, SignIn, useClerk } from '@clerk/nextjs'
-import { UserProvider, useUser } from '@/context/UserContext'
+import { UserProvider, useUser, useUserState } from '@/context/UserContext'
 import { LandingPage } from '@/components/rafael-ai/screens/LandingPage'
 import { PhaseFlow } from '@/components/rafael-ai/screens/PhaseFlow'
 import { MentorAvatar } from '@/components/rafael-ai/shared/MentorAvatar'
@@ -117,7 +117,8 @@ function LevelCompleteScreen({ phaseNumber }: { phaseNumber: number }) {
 }
 
 function RafaelAIContent() {
-  const { state, dispatch } = useUser()
+  const { dispatch, completeStep } = useUser()
+  const state = useUserState()
   const { gatePhaseTransition, showAuthWall } = useAuthGate()
   const { openSignIn } = useClerk()
   const [arrowReady, setArrowReady] = useState(false)
@@ -173,8 +174,7 @@ function RafaelAIContent() {
       setTimeout(() => {
         // Set panel to 0 FIRST before changing screen
         setPanel(0)
-        // Mark phase complete (this increments currentPhase)
-        dispatch({ type: 'COMPLETE_PHASE', payload: currentPhaseNumber })
+        // Phase completion already handled by PhaseFlow calling completeStep
         // Reset arrow state for the new cycle
         setArrowReady(false)
         // Go to Experience Shell, Chat panel (panel 0)
@@ -199,8 +199,7 @@ function RafaelAIContent() {
 
       // After showing the celebration, transition to chat
       setTimeout(() => {
-        // Complete the phase (this increments currentPhase)
-        dispatch({ type: 'COMPLETE_PHASE', payload: currentPhaseNumber })
+        // Phase completion already handled by PhaseFlow calling completeStep
         setArrowReady(false)
         // Switch to chat panel
         setPanel(0)

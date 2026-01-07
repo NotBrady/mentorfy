@@ -10,7 +10,7 @@ import { WhopCheckoutEmbed } from '@whop/checkout/react'
 import { InlineWidget, useCalendlyEventListener } from 'react-calendly'
 import { phases } from '@/data/rafael-ai/phases'
 import { mentor } from '@/data/rafael-ai/mentor'
-import { useUser } from '@/context/UserContext'
+import { useUser, useUserState } from '@/context/UserContext'
 import { useAgent } from '@/hooks/useAgent'
 import { COLORS } from '@/config/rafael-ai'
 
@@ -199,7 +199,7 @@ interface ContactInfoStepContentProps {
 }
 
 function ContactInfoStepContent({ step, onAnswer }: ContactInfoStepContentProps) {
-  const { dispatch } = useUser()
+  const { updateContact } = useUser()
   const [values, setValues] = useState<Record<string, string>>({})
   const [focusedField, setFocusedField] = useState<string | null>(null)
 
@@ -214,11 +214,11 @@ function ContactInfoStepContent({ step, onAnswer }: ContactInfoStepContentProps)
     return val.length >= 2
   })
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isValid) return
 
-    // Update state with user info
-    dispatch({ type: 'SET_ANSWER', payload: { key: step.stateKey, value: values } })
+    // Update contact info on server
+    await updateContact(values)
 
     // Advance to next step
     onAnswer(step.stateKey, values)
@@ -1465,7 +1465,8 @@ interface PhaseFlowProps {
 }
 
 export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, backHandlerRef }: PhaseFlowProps) {
-  const { state, dispatch } = useUser()
+  const { completeStep } = useUser()
+  const state = useUserState()
   const level = phases.find(l => l.id === levelId)
 
   // Initialize step from persisted state if we're on the same phase, otherwise start at 0
@@ -1524,29 +1525,51 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const canExitToPanel = currentStepIndex === 0 && !!onBack
   const shouldDimBackButton = isNonQuestionStep && !canExitToPanel
 
-  const handleAnswer = (stateKey: string, value: any) => {
-    dispatch({ type: 'SET_ANSWER', payload: { key: stateKey, value } })
-    goToNextStep()
-  }
+  const handleAnswer = async (stateKey: string, value: any) => {
+    const nextStepIndex = currentStepIndex + 1
+    const isLastStep = nextStepIndex >= level.steps.length
 
-  const goToNextStep = () => {
-    if (currentStepIndex < level.steps.length - 1) {
-      setCurrentStepIndex(prev => prev + 1)
-      // Persist step progress to backend
-      dispatch({ type: 'ADVANCE_STEP' })
-    } else {
-      // Level complete
-      dispatch({ type: 'COMPLETE_PHASE', payload: levelId })
+    // Build answer object with stateKey path
+    const answer = { [stateKey.split('.')[0]]: { [stateKey.split('.')[1] || stateKey]: value } }
+
+    // Determine next step ID
+    const nextStepId = isLastStep
+      ? `phase-${levelId}-complete`
+      : `phase-${levelId}-step-${nextStepIndex}`
+
+    // Server-as-truth: persist step + answer
+    await completeStep(nextStepId, answer)
+
+    if (isLastStep) {
       onComplete?.()
+    } else {
+      setCurrentStepIndex(nextStepIndex)
     }
   }
 
-  const goToPreviousStep = () => {
+  const goToNextStep = async () => {
+    const nextStepIndex = currentStepIndex + 1
+    const isLastStep = nextStepIndex >= level.steps.length
+
+    const nextStepId = isLastStep
+      ? `phase-${levelId}-complete`
+      : `phase-${levelId}-step-${nextStepIndex}`
+
+    await completeStep(nextStepId)
+
+    if (isLastStep) {
+      onComplete?.()
+    } else {
+      setCurrentStepIndex(nextStepIndex)
+    }
+  }
+
+  const goToPreviousStep = async () => {
     if (currentStepIndex > 0) {
-      const newStep = currentStepIndex - 1
-      setCurrentStepIndex(newStep)
-      // Persist step progress to backend
-      dispatch({ type: 'SET_STEP', payload: newStep })
+      const newStepIndex = currentStepIndex - 1
+      const prevStepId = `phase-${levelId}-step-${newStepIndex}`
+      await completeStep(prevStepId)
+      setCurrentStepIndex(newStepIndex)
     } else {
       onBack?.()
     }
