@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { streamText, convertToModelMessages } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
 import { db } from '@/lib/db'
@@ -144,6 +144,15 @@ export async function POST(req: Request) {
     const embedTools = buildEmbedTools(availableEmbeds)
     const toolNames = Object.keys(embedTools)
 
+    // Debug: log tool registration
+    console.log('[Chat] Tool registration:', {
+      sessionId,
+      completedPhases,
+      availableEmbeds,
+      registeredTools: toolNames,
+      sessionContext: sessionData.context
+    })
+
     // Build dynamic prompt section
     const embedSection = buildEmbedSection(toolNames)
     const basePrompt = agentId === 'rafael-chat'
@@ -167,8 +176,10 @@ export async function POST(req: Request) {
     // Get last user message for memory search
     const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user')?.content || ''
 
-    // Search Supermemory for relevant context
-    const memories = await searchMemories(sessionData.supermemory_container, lastUserMessage)
+    // Search Supermemory for relevant context (skip if no query)
+    const memories = lastUserMessage
+      ? await searchMemories(sessionData.supermemory_container, lastUserMessage)
+      : []
 
     // Build context from session + memories
     const contextParts: string[] = []
@@ -193,11 +204,14 @@ export async function POST(req: Request) {
       )
     }
 
+    // Convert UI messages to model format
+    const modelMessages = await convertToModelMessages(messages)
+
     // Stream response with dynamic tools
     const result = streamText({
       model: anthropic(agent.model),
       system: systemPrompt,
-      messages,
+      messages: modelMessages,
       tools: Object.keys(embedTools).length > 0 ? embedTools : undefined,
       maxOutputTokens: agent.maxTokens,
       temperature: agent.temperature,

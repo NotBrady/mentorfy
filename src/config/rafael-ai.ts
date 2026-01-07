@@ -155,7 +155,7 @@ export const PHASE_NAMES: Record<number, string> = {
 export const AUTH_CONFIG = {
   // Which phase completion triggers sign-in requirement
   // Set to null to disable auth requirement entirely
-  requireAuthAfterPhase: 1 as number | null,
+  requireAuthAfterPhase: null as number | null,
 } as const
 
 // Demo commands configuration

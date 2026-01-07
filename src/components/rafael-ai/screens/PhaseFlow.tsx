@@ -367,6 +367,7 @@ interface AIMomentStepContentProps {
 function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentProps) {
   const { getResponse } = useAgent()
   const [response, setResponse] = useState<string | null>(null)
+  const fetchedRef = useRef(false)
 
   // Thinking animation state
   const [displayText, setDisplayText] = useState('')
@@ -390,8 +391,11 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
   const deleteSpeed = 12
   const streamSpeed = 30
 
-  // Fetch response in background
+  // Fetch response in background (once per mount)
   useEffect(() => {
+    if (fetchedRef.current) return
+    fetchedRef.current = true
+
     async function fetchResponse() {
       const result = await getResponse(step.promptKey, state)
       setResponse(result.message)

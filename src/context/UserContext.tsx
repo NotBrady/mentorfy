@@ -1,13 +1,17 @@
 'use client'
 
 import { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useRef } from 'react'
-import { useAuth } from '@clerk/nextjs'
 
+const STORAGE_KEY = 'mentorfy-rafael-ai-state'
+const SESSION_KEY = 'mentorfy-session-id'
 const CLERK_ORG_ID = 'org_35wDDMLUgC1nZZLkDLtZ3A8TbJY' // MVP hardcode
 
 const initialState = {
   sessionId: null as string | null,
   sessionLoading: true,
+
+  // Returning user detection
+  returningUser: null as { existingSessionId: string } | null,
 
   user: {
     name: "",
@@ -107,6 +111,8 @@ type Action =
   | { type: 'SET_SESSION'; payload: { sessionId: string; loading?: boolean } }
   | { type: 'SET_SESSION_LOADING'; payload: boolean }
   | { type: 'HYDRATE_FROM_BACKEND'; payload: any }
+  | { type: 'SET_RETURNING_USER'; payload: { existingSessionId: string } }
+  | { type: 'CLEAR_RETURNING_USER' }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -312,6 +318,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         sessionId: backendData.id,
         sessionLoading: false,
+        returningUser: null, // Clear any pending returning user state
         user: {
           ...state.user,
           name: backendData.name || state.user.name,
@@ -327,6 +334,18 @@ function reducer(state: State, action: Action): State {
       }
     }
 
+    case 'SET_RETURNING_USER':
+      return {
+        ...state,
+        returningUser: { existingSessionId: action.payload.existingSessionId }
+      }
+
+    case 'CLEAR_RETURNING_USER':
+      return {
+        ...state,
+        returningUser: null
+      }
+
     default:
       return state
   }
@@ -335,17 +354,14 @@ function reducer(state: State, action: Action): State {
 type ContextValue = {
   state: State
   dispatch: React.Dispatch<Action>
-  syncToBackend: () => Promise<null>
+  syncToBackend: () => Promise<{ returning?: boolean; existingSessionId?: string } | null>
+  switchToSession: (sessionId: string) => Promise<boolean>
 }
 
 const UserContext = createContext<ContextValue | null>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isSignedIn, isLoaded, userId } = useAuth()
-
-  // Track if we've already initialized for this auth state
-  const initializedForUserRef = useRef<string | null>(null)
 
   // Sync context to backend session
   const syncToBackend = useCallback(async () => {
@@ -374,6 +390,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return null
       }
 
+      const data = await res.json()
+
+      // Handle returning user detection
+      if (data.returning && data.existingSessionId) {
+        return { returning: true, existingSessionId: data.existingSessionId }
+      }
+
       return null
     } catch (e) {
       console.error('Sync error:', e)
@@ -381,89 +404,119 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [state.sessionId, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress])
 
-  // Create a new backend session for authenticated user
-  const createSessionForUser = useCallback(async (clerkUserId: string) => {
+  // Initialize session - create or validate existing
+  const initSession = useCallback(async () => {
+    const savedSessionId = localStorage.getItem(SESSION_KEY)
+
+    if (savedSessionId) {
+      // Validate existing session
+      try {
+        const res = await fetch(`/api/session/${savedSessionId}`)
+        if (res.ok) {
+          const data = await res.json()
+          dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
+          return
+        }
+        // Session not found, clear and create new
+        localStorage.removeItem(SESSION_KEY)
+      } catch (e) {
+        console.error('Failed to validate session:', e)
+        localStorage.removeItem(SESSION_KEY)
+      }
+    }
+
+    // Create new session
     try {
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clerk_org_id: CLERK_ORG_ID,
-          clerk_user_id: clerkUserId,
-          // Include current context so it's saved immediately
-          context: {
-            situation: state.situation,
-            phase2: state.phase2,
-            phase3: state.phase3,
-            phase4: state.phase4,
-            progress: state.progress,
-          }
-        })
+        body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID })
       })
-
       if (res.ok) {
-        const data = await res.json()
-        dispatch({ type: 'SET_SESSION', payload: { sessionId: data.sessionId, loading: false } })
-        return data.sessionId
+        const { sessionId } = await res.json()
+        localStorage.setItem(SESSION_KEY, sessionId)
+        dispatch({ type: 'SET_SESSION', payload: { sessionId, loading: false } })
       } else {
         console.error('Failed to create session')
         dispatch({ type: 'SET_SESSION_LOADING', payload: false })
-        return null
       }
     } catch (e) {
       console.error('Session creation error:', e)
       dispatch({ type: 'SET_SESSION_LOADING', payload: false })
-      return null
     }
-  }, [state.situation, state.phase2, state.phase3, state.phase4, state.progress])
+  }, [])
 
-  // Fetch existing session for authenticated user
-  const fetchSessionForUser = useCallback(async (clerkUserId: string) => {
+  // Switch to an existing session (for returning users)
+  const switchToSession = useCallback(async (sessionId: string): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/session/by-user/${clerkUserId}`)
-      if (res.ok) {
-        const data = await res.json()
-        dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
-        return true
+      const res = await fetch(`/api/session/${sessionId}`)
+      if (!res.ok) {
+        console.error('Failed to fetch existing session')
+        return false
       }
-      return false
+
+      const data = await res.json()
+
+      // Clear local state storage (will be repopulated from backend)
+      localStorage.removeItem(STORAGE_KEY)
+
+      // Update session ID in localStorage
+      localStorage.setItem(SESSION_KEY, sessionId)
+
+      // Hydrate state from backend
+      dispatch({ type: 'HYDRATE_FROM_BACKEND', payload: data })
+
+      return true
     } catch (e) {
-      console.error('Failed to fetch user session:', e)
+      console.error('Switch session error:', e)
       return false
     }
   }, [])
 
-  // Initialize session based on auth state
+  // Load from localStorage on mount
   useEffect(() => {
-    if (!isLoaded) return
-
-    // Anonymous users: no backend session, just mark as not loading
-    if (!isSignedIn) {
-      dispatch({ type: 'SET_SESSION_LOADING', payload: false })
-      dispatch({ type: 'UPDATE_VISIT' })
-      initializedForUserRef.current = null
-      return
-    }
-
-    // Authenticated user - only initialize once per userId
-    if (userId && initializedForUserRef.current !== userId) {
-      initializedForUserRef.current = userId
-
-      const initAuthenticatedSession = async () => {
-        // Try to fetch existing session first
-        const hasExisting = await fetchSessionForUser(userId)
-
-        if (!hasExisting) {
-          // No existing session, create one
-          await createSessionForUser(userId)
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        // Migrate old state property names (currentLevel → currentPhase, completedLevels → completedPhases)
+        if (parsed.progress) {
+          if ('currentLevel' in parsed.progress && !('currentPhase' in parsed.progress)) {
+            parsed.progress.currentPhase = parsed.progress.currentLevel
+            delete parsed.progress.currentLevel
+          }
+          if ('completedLevels' in parsed.progress && !('completedPhases' in parsed.progress)) {
+            parsed.progress.completedPhases = parsed.progress.completedLevels
+            delete parsed.progress.completedLevels
+          }
         }
+        dispatch({ type: 'LOAD_STATE', payload: parsed })
+      } catch (e) {
+        console.error('Failed to load state:', e)
       }
-
-      initAuthenticatedSession()
+    } else {
+      dispatch({ type: 'UPDATE_VISIT' })
     }
-  }, [isLoaded, isSignedIn, userId, fetchSessionForUser, createSessionForUser])
 
-  // Auto-sync to backend when authenticated and data changes
+    // Initialize backend session
+    initSession()
+  }, [initSession])
+
+  // Save to localStorage on state change
+  useEffect(() => {
+    if (state.firstVisit) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    }
+  }, [state])
+
+  // Persist sessionId to localStorage when it changes
+  useEffect(() => {
+    if (state.sessionId) {
+      localStorage.setItem(SESSION_KEY, state.sessionId)
+    }
+  }, [state.sessionId])
+
+  // Auto-sync to backend when phases complete or user info changes
   const lastSyncedRef = useRef<string>('')
   useEffect(() => {
     if (!state.sessionId || state.sessionLoading) return
@@ -471,10 +524,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Create a sync key from data that should trigger sync
     const syncKey = JSON.stringify({
       user: state.user,
-      situation: state.situation,
-      phase2: state.phase2,
-      phase3: state.phase3,
-      phase4: state.phase4,
       completedPhases: state.progress.completedPhases,
       currentPhase: state.progress.currentPhase
     })
@@ -489,10 +538,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [state.sessionId, state.sessionLoading, state.user, state.situation, state.phase2, state.phase3, state.phase4, state.progress.completedPhases, state.progress.currentPhase, syncToBackend])
+  }, [state.sessionId, state.sessionLoading, state.user, state.progress.completedPhases, state.progress.currentPhase, syncToBackend])
 
   return (
-    <UserContext.Provider value={{ state, dispatch, syncToBackend }}>
+    <UserContext.Provider value={{ state, dispatch, syncToBackend, switchToSession }}>
       {children}
     </UserContext.Provider>
   )
@@ -524,4 +573,9 @@ export function useSessionId() {
 export function useSyncToBackend() {
   const { syncToBackend } = useUser()
   return syncToBackend
+}
+
+export function useSwitchToSession() {
+  const { switchToSession } = useUser()
+  return switchToSession
 }
