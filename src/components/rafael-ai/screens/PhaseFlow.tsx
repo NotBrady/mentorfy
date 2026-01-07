@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, MutableRefObject } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
 import { GlassHeader } from '../shared/GlassHeader'
 import { StepProgress } from '../shared/StepProgress'
 import { ThinkingAnimation } from '../shared/ThinkingAnimation'
@@ -509,7 +510,6 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
   const isInThinkingPhase = phase === 'typing' || phase === 'pausing' || phase === 'deleting' || phase === 'transitioning'
   const isInWaitingPhase = phase === 'waiting'
   const isInStreamingPhase = phase === 'streaming'
-  const { headline, paragraphs } = parsedResponse()
 
   return (
     <>
@@ -577,77 +577,73 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
           </div>
         )}
 
-        {/* Streaming Phase - Left-aligned response */}
+        {/* Streaming Phase - Left-aligned response with markdown */}
         {isInStreamingPhase && (
-          <div style={{ fontFamily: "'Lora', Charter, Georgia, serif" }}>
-            {/* Headline */}
-            {streamedHeadline && (
-              <h1 style={{
-                fontSize: '28px',
-                fontWeight: '600',
-                color: '#000',
-                lineHeight: '1.3',
-                margin: 0,
-                marginBottom: '24px',
-              }}>
-                {parseTextWithBold(streamedHeadline)}
-                {streamedHeadline.length < headline.length && (
-                  <span style={{
-                    display: 'inline-block',
-                    width: '2px',
-                    height: '0.9em',
-                    backgroundColor: '#333333',
-                    marginLeft: '3px',
-                    verticalAlign: 'baseline',
-                    animation: 'cursorBlink 1s step-end infinite',
-                  }} />
-                )}
-              </h1>
-            )}
-
-            {/* Paragraphs */}
-            {streamedParagraphs.map((para, i) => (
-              <p key={i} style={{
-                fontSize: '17px',
-                lineHeight: '1.75',
-                color: '#222',
-                margin: 0,
-                marginTop: i > 0 ? '20px' : 0,
-              }}>
-                {parseTextWithBold(para)}
-                {i === streamedParagraphs.length - 1 &&
-                 (para.length < paragraphs[i]?.length ||
-                  currentStreamParagraph < paragraphs.length) && (
-                  <span style={{
-                    display: 'inline-block',
-                    width: '2px',
-                    height: '1em',
-                    backgroundColor: '#333333',
-                    marginLeft: '2px',
-                    verticalAlign: 'text-bottom',
-                    animation: 'cursorBlink 1s step-end infinite',
-                  }} />
-                )}
-              </p>
-            ))}
-
-            {/* Cursor after headline if no paragraphs yet */}
-            {streamedHeadline.length >= headline.length &&
-             streamedParagraphs.length === 0 && paragraphs.length > 0 && (
-              <p style={{
-                fontSize: '17px',
-                lineHeight: '1.75',
-                color: '#222',
-                margin: 0,
-              }}>
-                <span style={{
-                  display: 'inline-block',
-                  width: '2px',
-                  height: '1em',
-                  backgroundColor: '#333333',
-                  animation: 'cursorBlink 1s step-end infinite',
-                }} />
-              </p>
+          <div className="ai-moment-markdown" style={{ fontFamily: "'Lora', Charter, Georgia, serif" }}>
+            <style>{`
+              .ai-moment-markdown h1 {
+                font-size: 28px;
+                font-weight: 600;
+                color: #000;
+                line-height: 1.3;
+                margin: 0 0 24px 0;
+              }
+              .ai-moment-markdown h2 {
+                font-size: 22px;
+                font-weight: 600;
+                color: #000;
+                line-height: 1.35;
+                margin: 28px 0 16px 0;
+              }
+              .ai-moment-markdown h3 {
+                font-size: 18px;
+                font-weight: 600;
+                color: #111;
+                line-height: 1.4;
+                margin: 24px 0 12px 0;
+              }
+              .ai-moment-markdown p {
+                font-size: 17px;
+                line-height: 1.75;
+                color: #222;
+                margin: 0 0 16px 0;
+              }
+              .ai-moment-markdown strong {
+                font-weight: 600;
+                color: #000;
+              }
+              .ai-moment-markdown ul, .ai-moment-markdown ol {
+                font-size: 17px;
+                line-height: 1.75;
+                color: #222;
+                margin: 0 0 16px 0;
+                padding-left: 24px;
+              }
+              .ai-moment-markdown li {
+                margin-bottom: 8px;
+              }
+              .ai-moment-markdown blockquote {
+                border-left: 3px solid #10B981;
+                padding-left: 16px;
+                margin: 16px 0;
+                font-style: italic;
+                color: #444;
+              }
+            `}</style>
+            <ReactMarkdown>
+              {streamedHeadline + (streamedParagraphs.length > 0 ? '\n\n' + streamedParagraphs.join('\n\n') : '')}
+            </ReactMarkdown>
+            {/* Blinking cursor while streaming */}
+            {!streamingComplete && (
+              <span style={{
+                display: 'inline-block',
+                width: '2px',
+                height: '1em',
+                backgroundColor: '#333333',
+                marginLeft: '2px',
+                verticalAlign: 'text-bottom',
+                animation: 'cursorBlink 1s step-end infinite',
+              }} />
             )}
           </div>
         )}
