@@ -11,6 +11,28 @@ import { phases } from '@/data/rafael-ai/phases'
 import { getRafaelChatPrompt } from '@/agents/rafael/chat'
 import type { EmbedData } from '@/types'
 
+/**
+ * Derive completed phases from current_step_id
+ * Returns null if step format is unrecognized (falls back to legacy)
+ */
+function deriveCompletedPhases(stepId: string | null): number[] | null {
+  if (!stepId) return null
+
+  // Step ID format: "phase-{N}-{state}" e.g., "phase-2-start", "phase-4-complete"
+  const match = stepId.match(/^phase-(\d+)-(start|complete)$/)
+  if (!match) return null
+
+  const phaseNum = parseInt(match[1], 10)
+  const state = match[2]
+
+  // "phase-N-complete" means phases 1..N are done
+  // "phase-N-start" means phases 1..(N-1) are done
+  const completedCount = state === 'complete' ? phaseNum : phaseNum - 1
+
+  if (completedCount <= 0) return []
+  return Array.from({ length: completedCount }, (_, i) => i + 1)
+}
+
 const anthropic = createAnthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
@@ -135,9 +157,11 @@ export async function POST(req: Request) {
       })
     }
 
-    // Get completed phases from session context
-    // Hardcoded for Rafael - swap when mentor #2 comes
-    const completedPhases: number[] = sessionData.context?.progress?.completedPhases || []
+    // Derive completed phases from current_step_id (server-as-truth)
+    // Falls back to legacy context.progress.completedPhases for backward compatibility
+    const completedPhases: number[] = deriveCompletedPhases(sessionData.current_step_id)
+      || sessionData.context?.progress?.completedPhases
+      || []
     const availableEmbeds = getAvailableEmbeds(completedPhases, phases as any)
 
     // Build dynamic tools based on user's journey

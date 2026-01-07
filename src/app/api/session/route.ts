@@ -5,7 +5,7 @@ import { getContainerId } from '@/lib/supermemory'
 // POST /api/session - create a new session (for authenticated users)
 export async function POST(req: Request) {
   try {
-    const { clerk_org_id, clerk_user_id, context } = await req.json()
+    const { clerk_org_id, clerk_user_id, flow_id, context } = await req.json()
 
     if (!clerk_org_id) {
       return NextResponse.json({ error: 'clerk_org_id required' }, { status: 400 })
@@ -22,6 +22,9 @@ export async function POST(req: Request) {
         clerk_user_id: clerk_user_id || null,
         supermemory_container: supermemoryContainer,
         status: 'active',
+        flow_id: flow_id || null,
+        current_step_id: 'phase-1-start',
+        answers: {},
         context: context || {},
       })
       .select()

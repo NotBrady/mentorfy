@@ -54,10 +54,13 @@ export async function PATCH(req: Request, context: RouteContext) {
     }
   }
 
-  // Deep merge context
+  // Deep merge context and answers
   const mergedContext = body.context
     ? { ...existing.context, ...body.context }
     : existing.context
+  const mergedAnswers = body.answers
+    ? { ...existing.answers, ...body.answers }
+    : existing.answers
 
   const updateData: Partial<Session> = {
     updated_at: new Date().toISOString(),
@@ -67,6 +70,9 @@ export async function PATCH(req: Request, context: RouteContext) {
   if (body.email !== undefined) updateData.email = body.email
   if (body.phone !== undefined) updateData.phone = body.phone
   if (body.status !== undefined) updateData.status = body.status
+  if (body.flow_id !== undefined) updateData.flow_id = body.flow_id
+  if (body.current_step_id !== undefined) updateData.current_step_id = body.current_step_id
+  if (body.answers !== undefined) updateData.answers = mergedAnswers
   if (body.context !== undefined) updateData.context = mergedContext
 
   const { data, error } = await db
