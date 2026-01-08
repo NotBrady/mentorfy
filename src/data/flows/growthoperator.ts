@@ -11,7 +11,7 @@ export const growthoperatorFlow: FlowDefinition = {
       headline: "Discover The System That Keeps My Calendar Booked With High-Ticket Clients All Year...",
       subheadline: 'Without Spending More Than 30 Minutes A Day On Content',
       buttonText: 'Start Your Diagnosis',
-      videoUrl: '',
+      videoUrl: 'https://rafaeltats.wistia.com/medias/4i06zkj7fg',
     },
   },
 
