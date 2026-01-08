@@ -1,8 +1,10 @@
 import { rafaelTatsFlow } from './rafael-tats'
+import { growthoperatorFlow } from './growthoperator'
 import type { FlowDefinition } from './types'
 
 const flows: Record<string, FlowDefinition> = {
   'rafael-tats': rafaelTatsFlow,
+  'growthoperator': growthoperatorFlow,
 }
 
 export function getFlow(flowId: string): FlowDefinition {
