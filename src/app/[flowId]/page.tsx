@@ -166,7 +166,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
   }
 
   // Initial Level Complete (fullscreen Phase 1) → Show celebration → Experience Shell
-  const handleInitialLevelComplete = () => {
+  const handleInitialLevelComplete = (lastAnswer?: Record<string, any>) => {
     gatePhaseTransition(currentPhaseNumber, () => {
       // Store which phase was just completed
       setCompletedPhaseNumber(currentPhaseNumber)
@@ -178,7 +178,8 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
         // Set panel to 0 FIRST before changing screen
         setPanel(0)
         // Mark phase complete via server (server-as-truth)
-        await completeStep(`phase-${currentPhaseNumber}-complete`)
+        // Include last answer if provided (for question steps that end a phase)
+        await completeStep(`phase-${currentPhaseNumber}-complete`, lastAnswer)
         // Reset arrow state for the new cycle
         setArrowReady(false)
         // Go to Experience Shell, Chat panel (panel 0)
@@ -194,7 +195,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
   }
 
   // Panel Level Complete (Panel 1 PhaseFlow) → Show completion screen → Chat
-  const handlePanelLevelComplete = () => {
+  const handlePanelLevelComplete = (lastAnswer?: Record<string, any>) => {
     gatePhaseTransition(currentPhaseNumber, () => {
       // Store which phase was just completed
       setCompletedPhaseNumber(currentPhaseNumber)
@@ -204,7 +205,8 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
       // After showing the celebration, transition to chat
       setTimeout(async () => {
         // Complete the phase via server (server-as-truth)
-        await completeStep(`phase-${currentPhaseNumber}-complete`)
+        // Include last answer if provided (for question steps that end a phase)
+        await completeStep(`phase-${currentPhaseNumber}-complete`, lastAnswer)
         setArrowReady(false)
         // Switch to chat panel
         setPanel(0)

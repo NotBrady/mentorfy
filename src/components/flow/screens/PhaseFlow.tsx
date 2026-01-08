@@ -1461,7 +1461,7 @@ const contentVariants = {
 
 interface PhaseFlowProps {
   levelId: number
-  onComplete?: () => void
+  onComplete?: (lastAnswer?: Record<string, any>) => void
   onBack?: () => void
   hideHeader?: boolean
   backHandlerRef?: MutableRefObject<(() => void) | null>
@@ -1544,12 +1544,13 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       ? `phase-${levelId}-complete`
       : `phase-${levelId}-step-${nextStepIndex}`
 
-    // Server-as-truth: persist step + answer
-    await completeStep(nextStepId, answer)
-
     if (isLastStep) {
-      onComplete?.()
+      // For phase completion: pass answer to parent, let parent handle persistence
+      // This prevents re-render race condition where component unmounts before callback
+      onComplete?.(answer)
     } else {
+      // For non-final steps: persist step + answer, then advance locally
+      await completeStep(nextStepId, answer)
       setCurrentStepIndex(nextStepIndex)
     }
   }
@@ -1562,11 +1563,13 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       ? `phase-${levelId}-complete`
       : `phase-${levelId}-step-${nextStepIndex}`
 
-    await completeStep(nextStepId)
-
     if (isLastStep) {
+      // For phase completion: notify parent, let parent handle persistence
+      // This prevents re-render race condition where component unmounts before callback
       onComplete?.()
     } else {
+      // For non-final steps: persist step, then advance locally
+      await completeStep(nextStepId)
       setCurrentStepIndex(nextStepIndex)
     }
   }

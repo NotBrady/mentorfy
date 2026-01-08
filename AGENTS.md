@@ -52,7 +52,7 @@ A **work session** is when you are working on one or more **bd** issues.
 - TypeScript (loose - use `any` liberally)
 - Tailwind CSS
 - framer-motion
-- pnpm
+- bun
 
 ## Conventions
 - Use `'use client'` for components with interactivity

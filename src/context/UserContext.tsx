@@ -228,7 +228,7 @@ export function useUserState() {
     progress: {
       currentScreen: uiState.currentScreen,
       currentPhase: deriveCurrentPhase(session?.current_step_id),
-      currentStep: 0,
+      currentStep: deriveCurrentStep(session?.current_step_id),
       completedPhases: deriveCompletedPhases(session?.current_step_id),
       videosWatched: [],
       justCompletedLevel: false,
@@ -243,8 +243,24 @@ export function useUserState() {
 // Derive current phase from step ID
 function deriveCurrentPhase(stepId: string | null | undefined): number {
   if (!stepId) return 1
+  // Check for phase-N-complete pattern - if complete, we're on the NEXT phase
+  const completeMatch = stepId.match(/^phase-(\d+)-complete$/)
+  if (completeMatch) {
+    return parseInt(completeMatch[1], 10) + 1
+  }
+  // Otherwise extract current phase number
   const match = stepId.match(/^phase-(\d+)/)
   return match ? parseInt(match[1], 10) : 1
+}
+
+// Derive current step within phase from step ID
+function deriveCurrentStep(stepId: string | null | undefined): number {
+  if (!stepId) return 0
+  // Phase complete means we're done with all steps
+  if (stepId.match(/^phase-\d+-complete$/)) return 0
+  // Extract step number from phase-N-step-M pattern
+  const match = stepId.match(/^phase-\d+-step-(\d+)$/)
+  return match ? parseInt(match[1], 10) : 0
 }
 
 // Derive completed phases from step ID

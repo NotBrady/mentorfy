@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_flow_id ON sessions(flow_id);
 UPDATE sessions
 SET
   answers = COALESCE(context, '{}'),
-  flow_id = 'rafael-ai',  -- Default flow for existing sessions
+  flow_id = 'rafael-tats',  -- Default flow for existing sessions
   current_step_id = CASE
     -- Try to infer step from context completeness
     WHEN context ? 'phase4' THEN 'phase-4-complete'
