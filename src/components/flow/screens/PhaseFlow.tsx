@@ -11,6 +11,7 @@ import { InlineWidget, useCalendlyEventListener } from 'react-calendly'
 import { getFlow } from '@/data/flows'
 import { useUser, useUserState } from '@/context/UserContext'
 import { useAgent } from '@/hooks/useAgent'
+import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS } from '@/config/flow'
 
 interface MultipleChoiceStepContentProps {
@@ -908,9 +909,12 @@ interface SalesPageStepContentProps {
 // Sales Page Step Content - Dynamic sales page with typing animation
 function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats' }: SalesPageStepContentProps) {
   const flow = getFlow(flowId)
+  const { state } = useUser()
+  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId })
   const [isPlaying, setIsPlaying] = useState(false)
   const [actionComplete, setActionComplete] = useState(false)
   const bookingConfirmationSentRef = useRef(false)
+  const embedTrackedRef = useRef(false)
 
   // Determine variant: 'checkout' (default) or 'calendly'
   const isCalendlyVariant = step.variant === 'calendly'
@@ -952,6 +956,17 @@ function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats'
     setActionComplete(true)
     setTimeout(() => onContinue?.(), 1500)
   }
+
+  // Track embed_shown when checkout/booking embed becomes visible
+  useEffect(() => {
+    if (phase === 'checkout' && checkoutVisible && !embedTrackedRef.current) {
+      embedTrackedRef.current = true
+      analytics.trackEmbedShown({
+        embedType: isCalendlyVariant ? 'booking' : 'checkout',
+        source: 'sales_page'
+      })
+    }
+  }, [phase, checkoutVisible, isCalendlyVariant, analytics])
 
   // Handle Calendly booking
   useCalendlyEventListener({
@@ -1474,6 +1489,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const flow = getFlow(flowId)
   const phases = flow.phases
   const level = phases.find(l => l.id === levelId)
+  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId })
 
   // Initialize step from persisted state if we're on the same phase, otherwise start at 0
   const initialStep = state.progress.currentPhase === levelId ? state.progress.currentStep : 0
@@ -1535,6 +1551,17 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const shouldDimBackButton = isNonQuestionStep && !canExitToPanel
 
   const handleAnswer = async (stateKey: string, value: any) => {
+    // Track step_completed
+    const step = level!.steps[currentStepIndex]
+    analytics.trackStepCompleted({
+      stepIndex: currentStepIndex,
+      phaseId: levelId,
+      phaseName: level!.name,
+      stepType: step.type,
+      answerText: typeof value === 'string' && value.length > 20 ? value : undefined,
+      answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined
+    })
+
     const nextStepIndex = currentStepIndex + 1
     const isLastStep = nextStepIndex >= level.steps.length
 

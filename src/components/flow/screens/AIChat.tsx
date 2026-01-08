@@ -9,6 +9,7 @@ import { VideoEmbed } from '../shared/VideoEmbed'
 import { WhopCheckoutEmbed } from '@whop/checkout/react'
 import { InlineWidget } from 'react-calendly'
 import { useUserState, useSessionId } from '@/context/UserContext'
+import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS, TIMING, LAYOUT, PHASE_NAMES } from '@/config/flow'
 import type { EmbedData } from '@/types'
 
@@ -747,10 +748,20 @@ function ChatBookingEmbed({ url }: ChatBookingEmbedProps) {
 interface RenderEmbedProps {
   embedData: any
   onCheckoutComplete?: () => void
+  onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
 }
 
 // Render embed based on type
-function RenderEmbed({ embedData, onCheckoutComplete }: RenderEmbedProps) {
+function RenderEmbed({ embedData, onCheckoutComplete, onEmbedShown }: RenderEmbedProps) {
+  const shownRef = useRef(false)
+
+  useEffect(() => {
+    if (!shownRef.current && embedData?.embedType) {
+      shownRef.current = true
+      onEmbedShown?.(embedData.embedType)
+    }
+  }, [embedData, onEmbedShown])
+
   switch (embedData.embedType) {
     case 'checkout':
       return <ChatCheckoutEmbed planId={embedData.checkoutPlanId} onComplete={onCheckoutComplete} />
@@ -766,10 +777,11 @@ function RenderEmbed({ embedData, onCheckoutComplete }: RenderEmbedProps) {
 interface EmbeddedRafaelMessageProps {
   embedData: any
   onComplete?: () => void
+  onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
 }
 
 // Message with embedded content
-function EmbeddedRafaelMessage({ embedData, onComplete }: EmbeddedRafaelMessageProps) {
+function EmbeddedRafaelMessage({ embedData, onComplete, onEmbedShown }: EmbeddedRafaelMessageProps) {
   const { beforeText, afterText } = embedData
   const [phase, setPhase] = useState(0) // 0: before, 1: embed, 2: after, 3: complete
   const [displayedBefore, setDisplayedBefore] = useState('')
@@ -832,7 +844,7 @@ function EmbeddedRafaelMessage({ embedData, onComplete }: EmbeddedRafaelMessageP
 
       {/* Embed */}
       {phase >= 1 && (
-        <RenderEmbed embedData={embedData} />
+        <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} />
       )}
 
       {/* After text */}
@@ -846,10 +858,11 @@ function EmbeddedRafaelMessage({ embedData, onComplete }: EmbeddedRafaelMessageP
 interface CompletedEmbeddedMessageProps {
   embedData: any
   thinkingTime?: number
+  onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
 }
 
 // Completed embedded message (non-streaming, already in state)
-function CompletedEmbeddedMessage({ embedData, thinkingTime }: CompletedEmbeddedMessageProps) {
+function CompletedEmbeddedMessage({ embedData, thinkingTime, onEmbedShown }: CompletedEmbeddedMessageProps) {
   const formatTime = (ms: number | undefined) => {
     if (!ms) return null
     return (ms / 1000).toFixed(2) + 's'
@@ -866,7 +879,7 @@ function CompletedEmbeddedMessage({ embedData, thinkingTime }: CompletedEmbedded
       )}
 
       {/* Embed */}
-      <RenderEmbed embedData={embedData} />
+      <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} />
 
       {/* After text */}
       {afterBlocks.map((block: string, i: number) =>
@@ -927,6 +940,8 @@ export function AIChat({
 }: AIChatProps) {
   const state = useUserState()
   const sessionId = useSessionId()
+  const analytics = useAnalytics({ sessionId: sessionId || undefined })
+  const messageCountRef = useRef(0)
 
   // useChat for API communication with tool support
   const {
@@ -1151,6 +1166,13 @@ export function AIChat({
       _placeholder: true
     }
 
+    // Track chat_message_sent
+    messageCountRef.current += 1
+    analytics.trackChatMessage({
+      messageIndex: messageCountRef.current,
+      messageLength: content.length
+    })
+
     // Add to local state
     setLocalMessages(prev => [
       ...prev.map(msg => msg._placeholder ? { ...msg, _placeholder: false } : msg),
@@ -1187,7 +1209,7 @@ export function AIChat({
           : msg
       ))
     }
-  }, [sendMessage, sessionId])
+  }, [sendMessage, sessionId, analytics])
 
   const handleStreamingComplete = useCallback(() => {
     setStreamingMessageId(null)
@@ -1196,6 +1218,10 @@ export function AIChat({
   const handleThinkingTimeUpdate = useCallback((ms: number) => {
     thinkingTimeRef.current = ms
   }, [])
+
+  const handleEmbedShown = useCallback((embedType: 'checkout' | 'booking' | 'video') => {
+    analytics.trackEmbedShown({ embedType, source: 'chat' })
+  }, [analytics])
 
   return (
     <div style={{
@@ -1256,6 +1282,7 @@ export function AIChat({
                       <EmbeddedRafaelMessage
                         embedData={message.embedData}
                         onComplete={handleStreamingComplete}
+                        onEmbedShown={handleEmbedShown}
                       />
                     ) : (
                       <StreamingRafaelMessage
@@ -1267,6 +1294,7 @@ export function AIChat({
                     <CompletedEmbeddedMessage
                       embedData={message.embedData}
                       thinkingTime={message.thinkingTime}
+                      onEmbedShown={handleEmbedShown}
                     />
                   ) : message.content ? (
                     <RafaelMessage content={message.content} thinkingTime={message.thinkingTime}>

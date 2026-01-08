@@ -12,6 +12,7 @@ import { TimelineShell, Panel } from '@/components/flow/layouts/TimelineShell'
 import { AIChat } from '@/components/flow/screens/AIChat'
 import { COLORS, TIMING, LAYOUT } from '@/config/flow'
 import { useAuthGate } from '@/hooks/useAuthGate'
+import { useAnalytics } from '@/hooks/useAnalytics'
 import type { FlowDefinition } from '@/data/flows/types'
 
 // Animated checkmark component
@@ -127,6 +128,11 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
   const [showLevelComplete, setShowLevelComplete] = useState(false)
   const [completedPhaseNumber, setCompletedPhaseNumber] = useState<number | null>(null)
 
+  // Analytics
+  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId: flow.id })
+  const flowStartedRef = useRef(false)
+  const chatOpenedRef = useRef(false)
+
   // Ref for PhaseFlow's back handler - allows stationary header to control internal navigation
   const levelFlowBackRef = useRef<(() => void) | null>(null)
 
@@ -162,6 +168,11 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
 
   // Welcome → Level Flow (fullscreen)
   const handleStartFromWelcome = () => {
+    // Track flow_started
+    if (!flowStartedRef.current && state.sessionId) {
+      flowStartedRef.current = true
+      analytics.trackFlowStarted({ flowId: flow.id, sessionId: state.sessionId })
+    }
     dispatch({ type: 'SET_SCREEN', payload: 'level-flow' })
   }
 
@@ -172,6 +183,14 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
       setCompletedPhaseNumber(currentPhaseNumber)
       // Show the level complete screen
       setShowLevelComplete(true)
+
+      // Track phase_completed
+      const phase = flow.phases.find(p => p.id === currentPhaseNumber)
+      analytics.trackPhaseCompleted({
+        phaseId: currentPhaseNumber,
+        phaseName: phase?.name || `Phase ${currentPhaseNumber}`,
+        phasesCompletedSoFar: [...state.progress.completedPhases, currentPhaseNumber]
+      })
 
       // After showing the celebration, transition to experience shell
       setTimeout(async () => {
@@ -184,6 +203,15 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
         setArrowReady(false)
         // Go to Experience Shell, Chat panel (panel 0)
         dispatch({ type: 'SET_SCREEN', payload: 'experience' })
+
+        // Track chat_opened when transitioning to experience shell
+        if (!chatOpenedRef.current) {
+          chatOpenedRef.current = true
+          analytics.trackChatOpened({
+            phasesCompleted: [...state.progress.completedPhases, currentPhaseNumber],
+            chatVersion: `post-phase-${currentPhaseNumber}`
+          })
+        }
 
         // Hide the level complete screen after chat is ready
         setTimeout(() => {
@@ -202,6 +230,14 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
       // Show the level complete screen
       setShowLevelComplete(true)
 
+      // Track phase_completed
+      const phase = flow.phases.find(p => p.id === currentPhaseNumber)
+      analytics.trackPhaseCompleted({
+        phaseId: currentPhaseNumber,
+        phaseName: phase?.name || `Phase ${currentPhaseNumber}`,
+        phasesCompletedSoFar: [...state.progress.completedPhases, currentPhaseNumber]
+      })
+
       // After showing the celebration, transition to chat
       setTimeout(async () => {
         // Complete the phase via server (server-as-truth)
@@ -210,6 +246,12 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
         setArrowReady(false)
         // Switch to chat panel
         setPanel(0)
+
+        // Track chat_opened when returning to chat
+        analytics.trackChatOpened({
+          phasesCompleted: [...state.progress.completedPhases, currentPhaseNumber],
+          chatVersion: `post-phase-${currentPhaseNumber}`
+        })
 
         // Hide the level complete screen after chat is ready
         setTimeout(() => {
