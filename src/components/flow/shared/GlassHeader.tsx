@@ -75,29 +75,8 @@ export function GlassHeader({ onBack, showBackButton = true, dimBackButton = fal
           <MentorBadge size="large" />
         </div>
 
-        {/* Account Icon - Dimmed (user not signed in yet) */}
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            color: '#666',
-            background: '#F0EBE4',
-            border: '1px solid #E8E3DC',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-            cursor: 'default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0.35,
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </div>
+        {/* Spacer for layout balance */}
+        <div style={{ width: '32px', height: '32px' }} />
       </div>
     </div>
   )

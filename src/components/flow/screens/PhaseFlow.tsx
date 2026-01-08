@@ -1452,12 +1452,12 @@ function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats'
   )
 }
 
-// Content transition variants - smooth horizontal slide (timeline moving left)
-const contentVariants = {
-  initial: { opacity: 0, x: 60 },
+// Content transition variants - direction-aware horizontal slide
+const getContentVariants = (direction: number) => ({
+  initial: { opacity: 0, x: direction * 60 },
   animate: { opacity: 1, x: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
-  exit: { opacity: 0, x: -60, transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] as const } }
-}
+  exit: { opacity: 0, x: direction * -60, transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] as const } }
+})
 
 interface PhaseFlowProps {
   levelId: number
@@ -1478,6 +1478,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   // Initialize step from persisted state if we're on the same phase, otherwise start at 0
   const initialStep = state.progress.currentPhase === levelId ? state.progress.currentStep : 0
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep)
+  const [direction, setDirection] = useState(1) // 1 = forward, -1 = back
 
   // Reset step index when levelId changes (new phase)
   useEffect(() => {
@@ -1497,6 +1498,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     if (backHandlerRef) {
       backHandlerRef.current = () => {
         if (currentStepIndex > 0) {
+          setDirection(-1)
           const newStep = currentStepIndex - 1
           setCurrentStepIndex(newStep)
         } else {
@@ -1550,6 +1552,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       onComplete?.(answer)
     } else {
       // For non-final steps: persist step + answer, then advance locally
+      setDirection(1)
       await completeStep(nextStepId, answer)
       setCurrentStepIndex(nextStepIndex)
     }
@@ -1569,6 +1572,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       onComplete?.()
     } else {
       // For non-final steps: persist step, then advance locally
+      setDirection(1)
       await completeStep(nextStepId)
       setCurrentStepIndex(nextStepIndex)
     }
@@ -1576,6 +1580,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
 
   const goToPreviousStep = async () => {
     if (currentStepIndex > 0) {
+      setDirection(-1)
       const newStepIndex = currentStepIndex - 1
       const prevStepId = `phase-${levelId}-step-${newStepIndex}`
       await completeStep(prevStepId)
@@ -1687,10 +1692,11 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       </div>
 
       {/* Animated Content Area - slides horizontally */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={currentStepIndex}
-          variants={contentVariants}
+          custom={direction}
+          variants={getContentVariants(direction)}
           initial="initial"
           animate="animate"
           exit="exit"

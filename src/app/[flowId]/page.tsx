@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, MutableRefObject, use } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { UserButton, SignedIn, SignedOut, SignIn, useClerk } from '@clerk/nextjs'
+import { SignIn, useClerk } from '@clerk/nextjs'
 import { UserProvider, useUser, useUserState } from '@/context/UserContext'
 import { LandingPage } from '@/components/flow/screens/LandingPage'
 import { PhaseFlow } from '@/components/flow/screens/PhaseFlow'
@@ -322,43 +322,8 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
                   <MentorBadge size="large" />
                 </div>
 
-                {/* Account button */}
-                <SignedIn>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: {
-                          width: '32px',
-                          height: '32px',
-                        },
-                      },
-                    }}
-                  />
-                </SignedIn>
-                <SignedOut>
-                  <button
-                    onClick={() => openSignIn({})}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      color: '#666',
-                      background: '#F0EBE4',
-                      border: '1px solid #E8E3DC',
-                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </button>
-                </SignedOut>
+                {/* Spacer for layout balance */}
+                <div style={{ width: '32px', height: '32px' }} />
               </div>
             </div>
 
