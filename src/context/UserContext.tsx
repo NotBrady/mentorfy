@@ -49,7 +49,12 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null)
 
-export function UserProvider({ children }: { children: ReactNode }) {
+interface UserProviderProps {
+  children: ReactNode
+  flowId?: string
+}
+
+export function UserProvider({ children, flowId = 'rafael-tats' }: UserProviderProps) {
   const [session, setSession] = useState<Session | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
 
@@ -69,16 +74,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
           const res = await fetch(`/api/session/${savedSessionId}`)
           if (res.ok) {
             const data = await res.json()
-            setSession(data)
-            // Restore UI state based on session progress
-            const phase = deriveCurrentPhase(data.current_step_id)
-            if (phase > 1 || data.current_step_id?.includes('complete')) {
-              dispatch({ type: 'SET_SCREEN', payload: 'experience' })
+            // Check if existing session matches current flow
+            if (data.flow_id === flowId) {
+              setSession(data)
+              // Restore UI state based on session progress
+              const phase = deriveCurrentPhase(data.current_step_id)
+              if (phase > 1 || data.current_step_id?.includes('complete')) {
+                dispatch({ type: 'SET_SCREEN', payload: 'experience' })
+              }
+              setSessionLoading(false)
+              return
             }
-            setSessionLoading(false)
-            return
+            // Flow mismatch - clear and create new session for this flow
+            localStorage.removeItem(SESSION_KEY)
+          } else {
+            localStorage.removeItem(SESSION_KEY)
           }
-          localStorage.removeItem(SESSION_KEY)
         } catch (e) {
           console.error('Failed to validate session:', e)
           localStorage.removeItem(SESSION_KEY)
@@ -90,7 +101,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const res = await fetch('/api/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID, flow_id: 'rafael-tats' })
+          body: JSON.stringify({ clerk_org_id: CLERK_ORG_ID, flow_id: flowId })
         })
         if (res.ok) {
           const { sessionId } = await res.json()
@@ -108,7 +119,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     initSession()
-  }, [])
+  }, [flowId])
 
   // Complete a step - server-as-truth
   const completeStep = useCallback(async (stepId: string, answer?: Record<string, any>) => {

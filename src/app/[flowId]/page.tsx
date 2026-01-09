@@ -551,7 +551,7 @@ export default function FlowPage({ params }: { params: Promise<{ flowId: string 
   const { flowId } = use(params)
 
   return (
-    <UserProvider>
+    <UserProvider flowId={flowId}>
       <FlowPageLoader flowId={flowId} />
     </UserProvider>
   )

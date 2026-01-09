@@ -2,11 +2,13 @@ import { AgentConfig } from './types'
 import { rafaelChatAgent } from './rafael/chat'
 import { rafaelDiagnosisAgent } from './rafael/diagnosis'
 import { rafaelSummaryAgent } from './rafael/summary'
+import { growthoperatorDiagnosisAgent } from './growthoperator/diagnosis'
 
 const agents: Record<string, AgentConfig> = {
   'rafael-chat': rafaelChatAgent,
   'rafael-diagnosis': rafaelDiagnosisAgent,
   'rafael-summary': rafaelSummaryAgent,
+  'growthoperator-diagnosis': growthoperatorDiagnosisAgent,
 }
 
 export function getAgent(id: string): AgentConfig | undefined {
