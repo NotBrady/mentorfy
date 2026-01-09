@@ -4,7 +4,7 @@ export const growthoperatorDiagnosisAgent: AgentConfig = {
   id: 'growthoperator-diagnosis',
   name: 'Growth Operator Diagnosis',
   provider: 'google',
-  model: 'gemini-2.5-flash-lite-preview-06-17',
+  model: 'gemini-2.5-flash-lite',
   maxTokens: 2048,
   temperature: 0.6,
   systemPrompt: `You are analyzing an applicant for the Growth Operator program - a partnership where operators work with experts to sell $5k-$15k AI products.
