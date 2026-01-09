@@ -1189,7 +1189,9 @@ export function AIChat({
     messageCountRef.current += 1
     analytics.trackChatMessage({
       messageIndex: messageCountRef.current,
-      messageLength: content.length
+      messageLength: content.length,
+      phasesCompleted,
+      chatAfterPhase: currentPhase,
     })
 
     // Add to local state
@@ -1239,12 +1241,12 @@ export function AIChat({
   }, [])
 
   const handleEmbedShown = useCallback((embedType: 'checkout' | 'booking' | 'video') => {
-    analytics.trackEmbedShown({ embedType, source: 'chat' })
-  }, [analytics])
+    analytics.trackEmbedShown({ embedType, source: 'chat', phasesCompleted })
+  }, [analytics, phasesCompleted])
 
   const handleBookingComplete = useCallback(() => {
-    analytics.trackBookingClicked({ source: 'chat' })
-  }, [analytics])
+    analytics.trackBookingClicked({ source: 'chat', phasesCompleted })
+  }, [analytics, phasesCompleted])
 
   return (
     <div style={{

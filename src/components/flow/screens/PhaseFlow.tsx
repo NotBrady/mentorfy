@@ -942,7 +942,7 @@ interface SalesPageStepContentProps {
 function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats' }: SalesPageStepContentProps) {
   const flow = getFlow(flowId)
   const state = useUserState()
-  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId })
+  const analytics = useAnalytics({ session_id: state.sessionId || '', flow_id: flowId })
   const [isPlaying, setIsPlaying] = useState(false)
   const [actionComplete, setActionComplete] = useState(false)
   const bookingConfirmationSentRef = useRef(false)
@@ -995,10 +995,11 @@ function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats'
       embedTrackedRef.current = true
       analytics.trackEmbedShown({
         embedType: isCalendlyVariant ? 'booking' : 'checkout',
-        source: 'sales_page'
+        source: 'sales_page',
+        phasesCompleted: state.progress.completedPhases,
       })
     }
-  }, [phase, checkoutVisible, isCalendlyVariant, analytics])
+  }, [phase, checkoutVisible, isCalendlyVariant, analytics, state.progress.completedPhases])
 
   // Handle Calendly booking
   useCalendlyEventListener({
@@ -1521,7 +1522,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const flow = getFlow(flowId)
   const phases = flow.phases
   const level = phases.find(l => l.id === levelId)
-  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId })
+  const analytics = useAnalytics({ session_id: state.sessionId || '', flow_id: flowId })
 
   // Initialize step from persisted state if we're on the same phase, otherwise start at 0
   const initialStep = state.progress.currentPhase === levelId ? state.progress.currentStep : 0
@@ -1589,9 +1590,11 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       stepIndex: currentStepIndex,
       phaseId: levelId,
       phaseName: level!.name,
+      phaseStepIndex: currentStepIndex,
       stepType: step.type,
+      answerKey: stateKey,
       answerText: typeof value === 'string' && value.length > 20 ? value : undefined,
-      answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined
+      answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined,
     })
 
     const nextStepIndex = currentStepIndex + 1

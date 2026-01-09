@@ -129,7 +129,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
   const [completedPhaseNumber, setCompletedPhaseNumber] = useState<number | null>(null)
 
   // Analytics
-  const analytics = useAnalytics({ sessionId: state.sessionId || undefined, flowId: flow.id })
+  const analytics = useAnalytics({ session_id: state.sessionId || '', flow_id: flow.id })
   const flowStartedRef = useRef(false)
   const chatOpenedRef = useRef(false)
 
@@ -171,7 +171,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
     // Track flow_started
     if (!flowStartedRef.current && state.sessionId) {
       flowStartedRef.current = true
-      analytics.trackFlowStarted({ flowId: flow.id, sessionId: state.sessionId })
+      analytics.trackFlowStarted()
     }
     dispatch({ type: 'SET_SCREEN', payload: 'level-flow' })
   }
@@ -209,7 +209,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
           chatOpenedRef.current = true
           analytics.trackChatOpened({
             phasesCompleted: [...state.progress.completedPhases, currentPhaseNumber],
-            chatVersion: `post-phase-${currentPhaseNumber}`
+            chatAfterPhase: currentPhaseNumber
           })
         }
 
@@ -250,7 +250,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
         // Track chat_opened when returning to chat
         analytics.trackChatOpened({
           phasesCompleted: [...state.progress.completedPhases, currentPhaseNumber],
-          chatVersion: `post-phase-${currentPhaseNumber}`
+          chatAfterPhase: currentPhaseNumber
         })
 
         // Hide the level complete screen after chat is ready
