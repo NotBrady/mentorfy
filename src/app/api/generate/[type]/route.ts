@@ -145,6 +145,7 @@ export async function POST(req: Request, context: RouteContext) {
       sessionId,
       userId: session.clerk_user_id || undefined,
       metadata: { flowId, agentId, orgId: session.clerk_org_id, type, promptKey, hasTools: !!tools, toolNames: tools ? Object.keys(tools) : [] },
+      input: messages,
     })
 
     const generation = trace.generation({
@@ -175,6 +176,7 @@ export async function POST(req: Request, context: RouteContext) {
         })
 
         trace.update({
+          output: text,
           metadata: {
             latencyMs: Date.now() - startTime,
             inputTokens: usage?.inputTokens,

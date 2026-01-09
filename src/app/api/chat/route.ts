@@ -232,6 +232,7 @@ export async function POST(req: Request) {
       sessionId,
       userId: sessionData.clerk_user_id || undefined,
       metadata: { flowId: sessionData.flow_id, agentId, orgId: sessionData.clerk_org_id, hasTools: toolNames.length > 0, toolNames },
+      input: langfuseMessages,
     })
 
     const generation = trace.generation({
@@ -269,6 +270,7 @@ export async function POST(req: Request) {
         })
 
         trace.update({
+          output: text,
           metadata: {
             latencyMs: Date.now() - startTime,
             inputTokens: usage?.inputTokens,

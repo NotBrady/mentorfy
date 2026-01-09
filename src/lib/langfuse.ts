@@ -25,11 +25,13 @@ export function createTrace(params: {
   sessionId?: string
   userId?: string
   metadata?: Record<string, any>
+  input?: any
 }) {
   return getLangfuse().trace({
     name: params.name,
     sessionId: params.sessionId,
     userId: params.userId,
     metadata: params.metadata,
+    input: params.input,
   })
 }
