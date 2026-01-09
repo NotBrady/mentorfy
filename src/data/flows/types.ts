@@ -15,6 +15,8 @@ export interface MentorConfig {
     subheadline: string
     buttonText: string
     videoUrl?: string
+    disclaimer?: string
+    socialProof?: string
   }
 }
 

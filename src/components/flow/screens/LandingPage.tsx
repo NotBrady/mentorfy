@@ -122,23 +122,40 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           {mentor.welcome.buttonText} →
         </motion.button>
 
-        {/* Social Proof */}
-        <div style={{
-          marginTop: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-        }}>
-          <span style={{ color: ACCENT_COLOR, fontSize: '13px', letterSpacing: '2px' }}>★★★★★</span>
-          <span style={{
+        {/* Disclaimer (optional) */}
+        {mentor.welcome.disclaimer && (
+          <p style={{
             fontFamily: "'Geist', -apple-system, sans-serif",
-            fontSize: '13px',
+            fontSize: '12px',
             color: '#888888',
+            lineHeight: '1.5',
+            margin: '14px 0 0 0',
+            maxWidth: '400px',
+            textAlign: 'center',
           }}>
-            Trusted by 500+ tattoo artists
-          </span>
-        </div>
+            {mentor.welcome.disclaimer}
+          </p>
+        )}
+
+        {/* Social Proof - only show if flow has socialProof configured */}
+        {mentor.welcome.socialProof && (
+          <div style={{
+            marginTop: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}>
+            <span style={{ color: ACCENT_COLOR, fontSize: '13px', letterSpacing: '2px' }}>★★★★★</span>
+            <span style={{
+              fontFamily: "'Geist', -apple-system, sans-serif",
+              fontSize: '13px',
+              color: '#888888',
+            }}>
+              {mentor.welcome.socialProof}
+            </span>
+          </div>
+        )}
 
         {/* Watermark */}
         <MentorfyWatermark />

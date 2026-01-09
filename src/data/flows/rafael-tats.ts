@@ -12,6 +12,7 @@ export const rafaelTatsFlow: FlowDefinition = {
       subheadline: 'Without Spending More Than 30 Minutes A Day On Content',
       buttonText: 'Start Your Diagnosis',
       videoUrl: 'https://rafaeltats.wistia.com/medias/4i06zkj7fg',
+      socialProof: 'Trusted by 500+ tattoo artists',
     },
   },
 

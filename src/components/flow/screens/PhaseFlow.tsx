@@ -362,11 +362,13 @@ interface AIMomentStepContentProps {
   step: any
   state: any
   onContinue: () => void
+  flowId?: string
 }
 
-function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentProps) {
+function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }: AIMomentStepContentProps) {
   const { getResponse } = useAgent()
   const [response, setResponse] = useState<string | null>(null)
+  const [embedData, setEmbedData] = useState<any>(null)
   const fetchedRef = useRef(false)
 
   // Thinking animation state
@@ -393,9 +395,10 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
     fetchedRef.current = true
 
     async function fetchResponse() {
-      await getResponse(step.promptKey, state, null, (text) => {
+      await getResponse(step.promptKey, state, null, (text, embed) => {
         // Update response as chunks arrive
         setResponse(text)
+        if (embed) setEmbedData(embed)
       })
       // Mark streaming complete when done
       setStreamingComplete(true)
@@ -586,8 +589,9 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
                 color: #444;
               }
             `}</style>
+            {/* Render beforeText from embed if present, otherwise full response */}
             <ReactMarkdown>
-              {response || ''}
+              {embedData?.beforeText || response || ''}
             </ReactMarkdown>
             {/* Blinking cursor while streaming */}
             {!streamingComplete && (
@@ -604,8 +608,36 @@ function AIMomentStepContent({ step, state, onContinue }: AIMomentStepContentPro
           </div>
         )}
 
-        {/* Continue Button - Green */}
-        {streamingComplete && (
+        {/* Calendly Embed - Show when AI determined user is qualified */}
+        {streamingComplete && embedData?.embedType === 'booking' && embedData?.calendlyUrl && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] as const }}
+            style={{
+              width: '100%',
+              margin: '32px 0',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <InlineWidget
+              url={embedData.calendlyUrl}
+              styles={{ height: '700px', minWidth: '100%' }}
+              pageSettings={{
+                backgroundColor: 'FAF6F0',
+                primaryColor: '10B981',
+                textColor: '1a1a1a',
+                hideEventTypeDetails: false,
+                hideLandingPageDetails: false,
+              }}
+            />
+          </motion.div>
+        )}
+
+        {/* Continue Button - Green (hide when booking embed is shown) */}
+        {streamingComplete && !embedData?.embedType && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1662,6 +1694,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
             step={currentStep}
             state={state}
             onContinue={goToNextStep}
+            flowId={flowId}
           />
         )
 

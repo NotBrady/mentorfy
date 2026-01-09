@@ -7,7 +7,7 @@ import { DefaultChatTransport } from 'ai'
 import { ChatBar } from '../shared/ChatBar'
 import { VideoEmbed } from '../shared/VideoEmbed'
 import { WhopCheckoutEmbed } from '@whop/checkout/react'
-import { InlineWidget } from 'react-calendly'
+import { InlineWidget, useCalendlyEventListener } from 'react-calendly'
 import { useUserState, useSessionId } from '@/context/UserContext'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS, TIMING, LAYOUT, PHASE_NAMES } from '@/config/flow'
@@ -711,10 +711,21 @@ function ChatVideoEmbed({ url }: ChatVideoEmbedProps) {
 
 interface ChatBookingEmbedProps {
   url: string
+  onBookingComplete?: () => void
 }
 
 // Booking embed - exact copy from LevelFlow (Calendly InlineWidget)
-function ChatBookingEmbed({ url }: ChatBookingEmbedProps) {
+function ChatBookingEmbed({ url, onBookingComplete }: ChatBookingEmbedProps) {
+  const bookingCompleteRef = useRef(false)
+
+  useCalendlyEventListener({
+    onEventScheduled: () => {
+      if (bookingCompleteRef.current) return
+      bookingCompleteRef.current = true
+      onBookingComplete?.()
+    },
+  })
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: 30 }}
@@ -748,11 +759,12 @@ function ChatBookingEmbed({ url }: ChatBookingEmbedProps) {
 interface RenderEmbedProps {
   embedData: any
   onCheckoutComplete?: () => void
+  onBookingComplete?: () => void
   onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
 }
 
 // Render embed based on type
-function RenderEmbed({ embedData, onCheckoutComplete, onEmbedShown }: RenderEmbedProps) {
+function RenderEmbed({ embedData, onCheckoutComplete, onBookingComplete, onEmbedShown }: RenderEmbedProps) {
   const shownRef = useRef(false)
 
   useEffect(() => {
@@ -768,7 +780,7 @@ function RenderEmbed({ embedData, onCheckoutComplete, onEmbedShown }: RenderEmbe
     case 'video':
       return <ChatVideoEmbed url={embedData.videoUrl} />
     case 'booking':
-      return <ChatBookingEmbed url={embedData.calendlyUrl} />
+      return <ChatBookingEmbed url={embedData.calendlyUrl} onBookingComplete={onBookingComplete} />
     default:
       return null
   }
@@ -778,10 +790,11 @@ interface EmbeddedRafaelMessageProps {
   embedData: any
   onComplete?: () => void
   onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
+  onBookingComplete?: () => void
 }
 
 // Message with embedded content
-function EmbeddedRafaelMessage({ embedData, onComplete, onEmbedShown }: EmbeddedRafaelMessageProps) {
+function EmbeddedRafaelMessage({ embedData, onComplete, onEmbedShown, onBookingComplete }: EmbeddedRafaelMessageProps) {
   const { beforeText, afterText } = embedData
   const [phase, setPhase] = useState(0) // 0: before, 1: embed, 2: after, 3: complete
   const [displayedBefore, setDisplayedBefore] = useState('')
@@ -844,7 +857,7 @@ function EmbeddedRafaelMessage({ embedData, onComplete, onEmbedShown }: Embedded
 
       {/* Embed */}
       {phase >= 1 && (
-        <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} />
+        <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} onBookingComplete={onBookingComplete} />
       )}
 
       {/* After text */}
@@ -859,10 +872,11 @@ interface CompletedEmbeddedMessageProps {
   embedData: any
   thinkingTime?: number
   onEmbedShown?: (embedType: 'checkout' | 'booking' | 'video') => void
+  onBookingComplete?: () => void
 }
 
 // Completed embedded message (non-streaming, already in state)
-function CompletedEmbeddedMessage({ embedData, thinkingTime, onEmbedShown }: CompletedEmbeddedMessageProps) {
+function CompletedEmbeddedMessage({ embedData, thinkingTime, onEmbedShown, onBookingComplete }: CompletedEmbeddedMessageProps) {
   const formatTime = (ms: number | undefined) => {
     if (!ms) return null
     return (ms / 1000).toFixed(2) + 's'
@@ -879,7 +893,7 @@ function CompletedEmbeddedMessage({ embedData, thinkingTime, onEmbedShown }: Com
       )}
 
       {/* Embed */}
-      <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} />
+      <RenderEmbed embedData={embedData} onEmbedShown={onEmbedShown} onBookingComplete={onBookingComplete} />
 
       {/* After text */}
       {afterBlocks.map((block: string, i: number) =>
@@ -1223,6 +1237,10 @@ export function AIChat({
     analytics.trackEmbedShown({ embedType, source: 'chat' })
   }, [analytics])
 
+  const handleBookingComplete = useCallback(() => {
+    analytics.trackBookingClicked({ source: 'chat' })
+  }, [analytics])
+
   return (
     <div style={{
       position: 'relative',
@@ -1283,6 +1301,7 @@ export function AIChat({
                         embedData={message.embedData}
                         onComplete={handleStreamingComplete}
                         onEmbedShown={handleEmbedShown}
+                        onBookingComplete={handleBookingComplete}
                       />
                     ) : (
                       <StreamingRafaelMessage
@@ -1295,6 +1314,7 @@ export function AIChat({
                       embedData={message.embedData}
                       thinkingTime={message.thinkingTime}
                       onEmbedShown={handleEmbedShown}
+                      onBookingComplete={handleBookingComplete}
                     />
                   ) : message.content ? (
                     <RafaelMessage content={message.content} thinkingTime={message.thinkingTime}>

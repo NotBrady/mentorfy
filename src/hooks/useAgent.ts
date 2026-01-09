@@ -89,12 +89,13 @@ export function useAgent() {
   }, [sessionId])
 
   // Legacy getResponse for backward compatibility (PhaseFlow AI moments)
+  // Returns message text and optional embed data if AI called a tool
   const getResponse = useCallback(async (
     promptKey: string,
     state: any,
     userMessage: string | null = null,
-    onChunk?: (text: string) => void
-  ): Promise<{ message: string }> => {
+    onChunk?: (text: string, embedData?: any) => void
+  ): Promise<{ message: string; embedData?: any }> => {
     // For chat, use the new sendMessage
     if (promptKey === 'chat' && userMessage) {
       const text = await sendMessage(userMessage, onChunk)
@@ -112,7 +113,7 @@ export function useAgent() {
       const res = await fetch('/api/generate/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId })
+        body: JSON.stringify({ sessionId, promptKey })
       })
 
       if (!res.ok) {
@@ -122,24 +123,77 @@ export function useAgent() {
         throw new Error('Generation failed')
       }
 
-      // Parse text stream
+      // Parse stream - could be plain text or UI message format with tool results
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No response stream')
 
       const decoder = new TextDecoder()
       let fullText = ''
+      let embedData: any = undefined
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        fullText += chunk
-        onChunk?.(fullText)
+        buffer += decoder.decode(value, { stream: true })
+
+        // Try to parse as UI message stream (SSE format with data: lines)
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('0:')) {
+            // Text chunk in UI message format: 0:"text content"
+            try {
+              const text = JSON.parse(line.slice(2))
+              fullText += text
+              onChunk?.(fullText, embedData)
+            } catch {
+              // Not JSON, treat as plain text
+              fullText += line
+              onChunk?.(fullText, embedData)
+            }
+          } else if (line.startsWith('9:')) {
+            // Tool result in UI message format: 9:{...}
+            try {
+              const toolData = JSON.parse(line.slice(2))
+              // Tool results come as array with tool call info
+              if (Array.isArray(toolData)) {
+                for (const item of toolData) {
+                  if (item.result?.embedType) {
+                    embedData = item.result
+                    onChunk?.(fullText, embedData)
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('Failed to parse tool result:', e)
+            }
+          } else if (!line.startsWith('d:') && !line.startsWith('e:') && line.trim()) {
+            // Plain text (backward compatible)
+            fullText += line
+            onChunk?.(fullText, embedData)
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (buffer.trim() && !buffer.startsWith('d:') && !buffer.startsWith('e:')) {
+        if (buffer.startsWith('0:')) {
+          try {
+            fullText += JSON.parse(buffer.slice(2))
+          } catch {
+            fullText += buffer
+          }
+        } else {
+          fullText += buffer
+        }
+        onChunk?.(fullText, embedData)
       }
 
       setIsLoading(false)
-      return { message: fullText }
+      return { message: fullText, embedData }
     } catch (err) {
       setIsLoading(false)
       console.error('Generation error:', err)

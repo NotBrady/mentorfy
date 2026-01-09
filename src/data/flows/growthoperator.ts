@@ -8,10 +8,10 @@ export const growthoperatorFlow: FlowDefinition = {
     handle: '@growthoperator',
     avatar: '/brady.jpg',
     welcome: {
-      headline: "Discover The System That Keeps My Calendar Booked With High-Ticket Clients All Year...",
-      subheadline: 'Without Spending More Than 30 Minutes A Day On Content',
-      buttonText: 'Start Your Diagnosis',
-      videoUrl: 'https://rafaeltats.wistia.com/medias/4i06zkj7fg',
+      headline: "We're Looking For 50 Serious Operators To Partner With Experts To Sell $5k-$15k AI Products",
+      subheadline: 'We Train You. We Find The Expert. You Run The Business.\n\nTake Our 5-Minute Assessment To See If You Qualify To Work With Us 1-on-1',
+      buttonText: 'See If I Qualify',
+      disclaimer: 'Warning: This will analyze your background, explain the model, and show you what you\'d actually be doing whether you qualify or not. Answer thoughtfully for the best experience.',
     },
   },
 
@@ -22,259 +22,130 @@ export const growthoperatorFlow: FlowDefinition = {
   },
 
   embeds: {
-    checkoutPlanId: 'plan_joNwbFAIES0hH',
     calendlyUrl: 'https://calendly.com/brady-mentorfy/30min',
-    bookingAfterPhase: 4,
   },
 
   phases: [
     {
       id: 1,
-      name: 'The Diagnosis',
+      name: 'Assessment',
       steps: [
+        // Question 1: Situation
         {
           type: 'question',
           questionType: 'multiple-choice',
-          question: 'What stage is your business at now?',
+          question: "What's your current work situation?",
           options: [
-            { value: 'booked-3-months', label: 'Fully booked out 3+ months' },
-            { value: 'booked-1-2-months', label: 'Booked out 1-2 months' },
-            { value: 'booked-1-month', label: 'Booked out about 1 month' },
-            { value: 'booked-1-2-weeks', label: 'Booked out 1-2 weeks' },
-            { value: 'inconsistent', label: 'Bookings are inconsistent' },
+            { value: 'full-time', label: 'Working full-time for someone else' },
+            { value: 'part-time', label: 'Working part-time' },
+            { value: 'self-employed', label: 'Self-employed or freelancing' },
+            { value: 'own-business', label: 'Running my own business' },
+            { value: 'in-between', label: 'In between things right now' },
           ],
-          stateKey: 'situation.bookingStatus',
+          stateKey: 'assessment.situation',
         },
+        // Question 2: Background
         {
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What's your average project value?",
+          question: "What's your professional background?",
           options: [
-            { value: '10k-plus', label: '$10k+' },
-            { value: '5k-10k', label: '$5k - $10k' },
-            { value: '2k-5k', label: '$2k - $5k' },
-            { value: '1k-2k', label: '$1k - $2k' },
-            { value: '500-1k', label: '$500 - $1k' },
-            { value: 'under-500', label: 'Under $500' },
+            { value: 'sales', label: 'Sales or business development' },
+            { value: 'marketing', label: 'Marketing or advertising' },
+            { value: 'operations', label: 'Operations or management' },
+            { value: 'tech', label: 'Tech or engineering' },
+            { value: 'finance', label: 'Finance or consulting' },
+            { value: 'creative', label: 'Creative or content' },
+            { value: 'other', label: 'Other' },
           ],
-          stateKey: 'situation.projectValue',
+          stateKey: 'assessment.background',
         },
+        // Question 3: Experience
         {
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What's stopping you from being booked out?",
+          question: 'Have you tried building a business before?',
           options: [
-            { value: 'unpredictable-posting', label: 'Posting but results are unpredictable' },
-            { value: 'price-shoppers', label: 'Leads are all price shoppers' },
-            { value: 'no-time', label: 'No time — working all day' },
-            { value: 'invisible', label: 'Good work but invisible' },
+            { value: 'no', label: 'No, this would be my first' },
+            { value: 'one-two', label: 'Yes, one or two attempts' },
+            { value: 'several', label: 'Yes, several attempts' },
+            { value: 'running-now', label: "Yes, I'm running one now" },
           ],
-          stateKey: 'situation.blocker',
+          stateKey: 'assessment.experience',
         },
+        // Question 4: Time
+        {
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "This isn't a \"watch some videos\" thing. It's building a real business. How much time can you actually commit each week?",
+          options: [
+            { value: 'less-5', label: 'Less than 5 hours' },
+            { value: '5-10', label: '5-10 hours' },
+            { value: '10-20', label: '10-20 hours' },
+            { value: '20-plus', label: '20+ hours' },
+          ],
+          stateKey: 'assessment.time',
+        },
+        // Question 5: Capital
+        {
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: 'Every real business takes startup capital. What do you have available to invest in building this?',
+          options: [
+            { value: 'under-1k', label: 'Under $1,000' },
+            { value: '1k-5k', label: '$1,000 - $5,000' },
+            { value: '5k-10k', label: '$5,000 - $10,000' },
+            { value: '10k-plus', label: '$10,000+' },
+          ],
+          stateKey: 'assessment.capital',
+        },
+        // Contact Info
         {
           type: 'question',
           questionType: 'contact-info',
-          question: "What's your contact info?",
+          question: 'Almost done. Enter your details to get your personalized analysis.',
           fields: [
-            { key: 'name', label: 'Name', type: 'text', placeholder: 'Your name', autoComplete: 'name' },
+            { key: 'name', label: 'First name', type: 'text', placeholder: 'Your first name', autoComplete: 'given-name' },
             { key: 'email', label: 'Email', type: 'email', placeholder: 'your@email.com', autoComplete: 'email' },
             { key: 'phone', label: 'Phone', type: 'tel', placeholder: '(555) 123-4567', autoComplete: 'tel' },
           ],
           stateKey: 'user',
         },
+        // First AI Diagnosis
+        {
+          type: 'ai-moment',
+          promptKey: 'first-diagnosis',
+          skipThinking: true,
+        },
+        // Question 6: What's Really Going On
         {
           type: 'question',
           questionType: 'long-answer',
-          question: "Be honest: why aren't you booked out yet?",
-          placeholder: 'No wrong answer...',
-          stateKey: 'situation.confession',
+          question: "What's actually going on in your life right now that made you stop and pay attention to this?",
+          placeholder: 'Be honest...',
+          stateKey: 'assessment.whatsGoingOn',
         },
-        {
-          type: 'ai-moment',
-          promptKey: 'phase-1-relief',
-          skipThinking: true,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: 'Get Booked Without Going Viral',
-      steps: [
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'What do you check first after posting?',
-          options: [
-            { value: 'views-likes', label: 'Views and likes' },
-            { value: 'follower-count', label: 'Follower count' },
-            { value: 'comments-dms', label: 'Comments and DMs' },
-            { value: 'saves-shares', label: 'Saves and shares' },
-          ],
-          stateKey: 'phase2.checkFirst',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'If you had 100k followers, what would change?',
-          options: [
-            { value: 'consistent-bookings', label: 'Finally be consistently booked' },
-            { value: 'charge-more', label: 'Charge more' },
-            { value: 'not-much', label: 'Probably not much' },
-            { value: 'made-it', label: 'Feel like I made it' },
-          ],
-          stateKey: 'phase2.hundredKFollowers',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'When does a post feel like it worked?',
-          options: [
-            { value: '10k-views', label: 'Gets over 10k views' },
-            { value: 'lots-comments', label: 'Gets lots of comments' },
-            { value: 'booking-dm', label: 'Someone DMs about booking' },
-            { value: 'nothing-consistent', label: 'Nothing feels consistent' },
-          ],
-          stateKey: 'phase2.postWorked',
-        },
+        // Question 7: Why This
         {
           type: 'question',
           questionType: 'long-answer',
-          question: "What would change if views didn't matter?",
-          placeholder: 'Think about it...',
-          stateKey: 'phase2.viewsReflection',
+          question: "You've probably seen a hundred opportunities. What's different about this one?",
+          placeholder: 'What caught your attention...',
+          stateKey: 'assessment.whyThis',
         },
-        {
-          type: 'ai-moment',
-          promptKey: 'phase-2-relief',
-          skipThinking: true,
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: 'The 30-Minute Content System',
-      steps: [
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'How much time on content each week?',
-          options: [
-            { value: 'almost-none', label: 'Almost none' },
-            { value: '1-2-hours', label: '1-2 hours' },
-            { value: '3-5-hours', label: '3-5 hours' },
-            { value: '5-plus-hours', label: '5+ hours' },
-          ],
-          stateKey: 'phase3.timeOnContent',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Hardest part about content?',
-          options: [
-            { value: 'dont-know-what', label: "Don't know what to post" },
-            { value: 'no-time', label: 'No time' },
-            { value: 'awkward-camera', label: 'Awkward on camera' },
-            { value: 'no-conversion', label: 'Nothing converts' },
-          ],
-          stateKey: 'phase3.hardestPart',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Do you see yourself as a content creator?',
-          options: [
-            { value: 'not-really', label: "No, I just run my business" },
-            { value: 'kind-of', label: 'Kind of' },
-            { value: 'accepted', label: 'Yeah, part of the game' },
-            { value: 'never-thought', label: 'Never thought about it' },
-          ],
-          stateKey: 'phase3.contentCreatorIdentity',
-        },
+        // Question 8: Why You
         {
           type: 'question',
           questionType: 'long-answer',
-          question: 'What would you do with 5 extra hours a week?',
-          placeholder: 'Be specific...',
-          stateKey: 'phase3.extraTime',
+          question: 'We get hundreds of people through this page. We accept less than 50 to work with us directly. Why should you be one of them?',
+          placeholder: 'Make your case...',
+          stateKey: 'assessment.whyYou',
         },
+        // Final AI Diagnosis (with conditional booking via tool)
         {
           type: 'ai-moment',
-          promptKey: 'phase-3-relief',
+          promptKey: 'final-diagnosis',
           skipThinking: true,
-        },
-      ],
-    },
-    {
-      id: 4,
-      name: 'Double Your Revenue',
-      steps: [
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Last time you raised prices?',
-          options: [
-            { value: 'within-3-months', label: 'Within 3 months' },
-            { value: '6-months', label: '6 months ago' },
-            { value: 'over-year', label: 'Over a year' },
-            { value: 'never', label: 'Never' },
-          ],
-          stateKey: 'phase4.lastPriceRaise',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: "When someone says 'too expensive'?",
-          options: [
-            { value: 'discount', label: 'Offer a discount' },
-            { value: 'explain', label: "Explain why I'm worth it" },
-            { value: 'let-walk', label: 'Let them walk' },
-            { value: 'panic', label: 'Panic and give in' },
-          ],
-          stateKey: 'phase4.tooExpensiveResponse',
-        },
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Biggest fear about raising prices?',
-          options: [
-            { value: 'lose-clients', label: 'Lose clients' },
-            { value: 'greedy', label: 'Look greedy' },
-            { value: 'not-worth-more', label: 'Not worth more yet' },
-            { value: 'no-fear', label: "No fear, just don't know how" },
-          ],
-          stateKey: 'phase4.pricingFear',
-        },
-        {
-          type: 'question',
-          questionType: 'long-answer',
-          question: 'What would you do with double the revenue?',
-          placeholder: 'Dream big...',
-          stateKey: 'phase4.doubleRevenue',
-        },
-        {
-          type: 'ai-moment',
-          promptKey: 'phase-4-relief',
-          skipThinking: true,
-        },
-        {
-          type: 'sales-page',
-          variant: 'calendly',
-          headline: "You're a great fit for 1-on-1.",
-          copyAboveVideo: `Based on everything you've shared, I think you'd benefit from working with me directly.
-
-This isn't for everyone. But you've done the work. You understand the framework. Now you need someone to look at your specific situation and tell you exactly what to do.
-
-That's what these calls are for.`,
-          copyBelowVideo: `Here's how it works:
-
-Book a 30-minute call with my team. We'll look at where you are, where you want to be, and whether working together makes sense.
-
-**No pressure.** If it's not the right fit, we'll tell you — and point you in the right direction.
-
-**If it is the right fit**, we'll map out exactly what working together would look like.
-
-This is for business owners who are serious about making the jump. If that's you, grab a time:`,
-          calendlyUrl: 'https://calendly.com/brady-mentorfy/30min',
         },
       ],
     },
