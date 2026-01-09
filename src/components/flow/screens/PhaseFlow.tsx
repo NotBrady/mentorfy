@@ -1598,7 +1598,12 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     const isLastStep = nextStepIndex >= level.steps.length
 
     // Build answer object with stateKey path
-    const answer = { [stateKey.split('.')[0]]: { [stateKey.split('.')[1] || stateKey]: value } }
+    // For 'assessment.situation' → { assessment: { situation: value } }
+    // For 'user' → { user: value } (value is already { name, email, phone })
+    const parts = stateKey.split('.')
+    const answer = parts.length > 1
+      ? { [parts[0]]: { [parts[1]]: value } }
+      : { [stateKey]: value }
 
     // Determine next step ID
     const nextStepId = isLastStep
