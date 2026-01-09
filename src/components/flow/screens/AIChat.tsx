@@ -944,6 +944,8 @@ interface AIChatProps {
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>
   continueReady?: boolean
   onContinue?: () => void
+  flowId: string
+  phasesCompleted: number[]
 }
 
 export function AIChat({
@@ -951,11 +953,13 @@ export function AIChat({
   currentPhase,
   scrollContainerRef: externalScrollRef,
   continueReady,
-  onContinue
+  onContinue,
+  flowId,
+  phasesCompleted,
 }: AIChatProps) {
   const state = useUserState()
   const sessionId = useSessionId()
-  const analytics = useAnalytics({ sessionId: sessionId || undefined })
+  const analytics = useAnalytics({ session_id: sessionId || '', flow_id: flowId })
   const messageCountRef = useRef(0)
 
   // useChat for API communication with tool support

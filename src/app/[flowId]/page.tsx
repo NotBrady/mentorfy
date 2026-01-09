@@ -383,6 +383,8 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
                   scrollContainerRef={chatPanelScrollRef}
                   continueReady={arrowReady}
                   onContinue={handleContinueClick}
+                  flowId={flow.id}
+                  phasesCompleted={state.progress.completedPhases}
                 />
               </Panel>
 
