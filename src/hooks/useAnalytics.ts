@@ -1,7 +1,7 @@
 'use client'
 
 import { usePostHog } from 'posthog-js/react'
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 
 export interface AnalyticsContext {
   session_id: string
@@ -16,10 +16,10 @@ export function useAnalytics(context: AnalyticsContext) {
   const phaseStartTime = useRef<number>(Date.now())
 
   // Base properties included in every event
-  const baseProps = {
+  const baseProps = useMemo(() => ({
     session_id: context.session_id,
     flow_id: context.flow_id,
-  }
+  }), [context.session_id, context.flow_id])
 
   const startStepTimer = useCallback(() => {
     stepStartTime.current = Date.now()
