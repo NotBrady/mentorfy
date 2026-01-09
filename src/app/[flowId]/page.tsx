@@ -132,6 +132,18 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
   const analytics = useAnalytics({ session_id: state.sessionId || '', flow_id: flow.id })
   const flowStartedRef = useRef(false)
   const chatOpenedRef = useRef(false)
+  const utmParamsRef = useRef<{ utm_source?: string | null; utm_campaign?: string | null }>({})
+
+  // Parse UTM params on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      utmParamsRef.current = {
+        utm_source: params.get('utm_source'),
+        utm_campaign: params.get('utm_campaign'),
+      }
+    }
+  }, [])
 
   // Ref for PhaseFlow's back handler - allows stationary header to control internal navigation
   const levelFlowBackRef = useRef<(() => void) | null>(null)
@@ -171,7 +183,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
     // Track flow_started
     if (!flowStartedRef.current && state.sessionId) {
       flowStartedRef.current = true
-      analytics.trackFlowStarted()
+      analytics.trackFlowStarted(utmParamsRef.current)
     }
     dispatch({ type: 'SET_SCREEN', payload: 'level-flow' })
   }

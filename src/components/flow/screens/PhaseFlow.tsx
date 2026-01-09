@@ -1540,6 +1540,16 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     }
   }, [levelId, state.progress.currentPhase, state.progress.currentStep])
 
+  // Reset step timer when step changes (for time_on_step_ms tracking)
+  useEffect(() => {
+    analytics.startStepTimer()
+  }, [currentStepIndex, analytics])
+
+  // Reset phase timer when phase changes (for time_in_phase_ms tracking)
+  useEffect(() => {
+    analytics.startPhaseTimer()
+  }, [levelId, analytics])
+
   // Expose back handler to parent via ref (for stationary header control)
   // Must be before any early returns to satisfy React hooks rules
   useEffect(() => {
