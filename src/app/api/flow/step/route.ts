@@ -2,6 +2,30 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 /**
+ * Deep merge objects, preserving nested structure.
+ * Used to properly merge answers like { assessment: { situation: '...' } }
+ * without losing previously saved nested fields.
+ */
+function deepMerge(target: any, source: any): any {
+  const result = { ...target }
+  for (const key of Object.keys(source)) {
+    if (
+      source[key] !== null &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key]) &&
+      target[key] !== null &&
+      typeof target[key] === 'object' &&
+      !Array.isArray(target[key])
+    ) {
+      result[key] = deepMerge(target[key], source[key])
+    } else {
+      result[key] = source[key]
+    }
+  }
+  return result
+}
+
+/**
  * POST /api/flow/step
  *
  * Server-as-truth step progression endpoint.
@@ -38,12 +62,11 @@ export async function POST(req: Request) {
       updated_at: new Date().toISOString(),
     }
 
-    // Merge answer if provided
+    // Deep merge answer if provided (preserves nested fields like assessment.*)
     if (answer !== undefined) {
-      const mergedAnswers = { ...session.answers, ...answer }
-      updateData.answers = mergedAnswers
+      updateData.answers = deepMerge(session.answers || {}, answer)
       // Keep context in sync for backward compatibility
-      updateData.context = { ...session.context, ...answer }
+      updateData.context = deepMerge(session.context || {}, answer)
     }
 
     // Atomic update
