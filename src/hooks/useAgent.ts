@@ -138,27 +138,44 @@ export function useAgent() {
 
         buffer += decoder.decode(value, { stream: true })
 
-        // Try to parse as UI message stream (SSE format with data: lines)
+        // Parse stream - supports AI SDK v6 format (data: JSON) and legacy formats
         const lines = buffer.split('\n')
         buffer = lines.pop() || '' // Keep incomplete line in buffer
 
         for (const line of lines) {
-          if (line.startsWith('0:')) {
-            // Text chunk in UI message format: 0:"text content"
+          // AI SDK v6 format: data: {"type":"text-delta","delta":"..."}
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.type === 'text-delta' && data.delta) {
+                fullText += data.delta
+                onChunk?.(fullText, embedData)
+              } else if (data.type === 'tool-output-available' && data.output?.embedType) {
+                // AI SDK v6 tool output format
+                embedData = data.output
+                onChunk?.(fullText, embedData)
+              } else if (data.type === 'tool-result' && data.result?.embedType) {
+                // Legacy tool result format
+                embedData = data.result
+                onChunk?.(fullText, embedData)
+              }
+            } catch {
+              // Invalid JSON, skip
+            }
+          } else if (line.startsWith('0:')) {
+            // Legacy format: 0:"text content"
             try {
               const text = JSON.parse(line.slice(2))
               fullText += text
               onChunk?.(fullText, embedData)
             } catch {
-              // Not JSON, treat as plain text
               fullText += line
               onChunk?.(fullText, embedData)
             }
           } else if (line.startsWith('9:')) {
-            // Tool result in UI message format: 9:{...}
+            // Legacy format: 9:[{...tool results...}]
             try {
               const toolData = JSON.parse(line.slice(2))
-              // Tool results come as array with tool call info
               if (Array.isArray(toolData)) {
                 for (const item of toolData) {
                   if (item.result?.embedType) {
@@ -170,8 +187,8 @@ export function useAgent() {
             } catch (e) {
               console.error('Failed to parse tool result:', e)
             }
-          } else if (!line.startsWith('d:') && !line.startsWith('e:') && line.trim()) {
-            // Plain text (backward compatible)
+          } else if (!line.startsWith('d:') && !line.startsWith('e:') && !line.startsWith(':') && line.trim()) {
+            // Plain text (backward compatible) - skip SSE comments starting with :
             fullText += line
             onChunk?.(fullText, embedData)
           }
@@ -179,14 +196,21 @@ export function useAgent() {
       }
 
       // Process any remaining buffer
-      if (buffer.trim() && !buffer.startsWith('d:') && !buffer.startsWith('e:')) {
-        if (buffer.startsWith('0:')) {
+      if (buffer.trim()) {
+        if (buffer.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(buffer.slice(6))
+            if (data.type === 'text-delta' && data.delta) {
+              fullText += data.delta
+            }
+          } catch { /* skip */ }
+        } else if (buffer.startsWith('0:')) {
           try {
             fullText += JSON.parse(buffer.slice(2))
           } catch {
             fullText += buffer
           }
-        } else {
+        } else if (!buffer.startsWith('d:') && !buffer.startsWith('e:') && !buffer.startsWith(':')) {
           fullText += buffer
         }
         onChunk?.(fullText, embedData)
