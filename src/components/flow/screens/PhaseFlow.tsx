@@ -1996,8 +1996,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       {!hideHeader && (
         <GlassHeader
           onBack={goToPreviousStep}
-          showBackButton={currentStepIndex > 0 || !!onBack}
-          dimBackButton={shouldDimBackButton}
+          showBackButton={(currentStepIndex > 0 || !!onBack) && !shouldDimBackButton}
           useAbsolutePosition={!!onBack}
           flowId={flowId}
         />
