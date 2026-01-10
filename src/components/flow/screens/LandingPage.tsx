@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { VideoEmbed } from '../shared/VideoEmbed'
 import { MentorAvatar } from '../shared/MentorAvatar'
 import { MentorBadge } from '../shared/MentorBadge'
 import { MentorfyWatermark } from '../shared/MentorfyWatermark'
@@ -68,6 +67,22 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           <MentorBadge flowId={flowId} />
         </div>
 
+        {/* Callout (optional - shown above headline in larger italic text) */}
+        {mentor.welcome.callout && (
+          <p style={{
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: '20px',
+            fontWeight: '500',
+            fontStyle: 'italic',
+            color: '#333333',
+            lineHeight: '1.5',
+            margin: '0 0 16px 0',
+            maxWidth: '520px',
+          }}>
+            {mentor.welcome.callout}
+          </p>
+        )}
+
         {/* Headline - $2k-$10k in green */}
         <h1 style={{
           fontFamily: "'Lora', Charter, Georgia, serif",
@@ -93,11 +108,6 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           {mentor.welcome.subheadline}
         </p>
 
-        {/* Video */}
-        <div style={{ marginBottom: '20px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <VideoEmbed url={mentor.welcome.videoUrl} maxWidth="560px" />
-        </div>
-
         {/* Button - Green with hover animation */}
         <motion.button
           onClick={onStart}
@@ -109,7 +119,7 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
             padding: '16px 32px',
             borderRadius: '12px',
             fontSize: '16px',
-            fontWeight: '500',
+            fontWeight: '700',
             border: 'none',
             cursor: 'pointer',
             width: '100%',
@@ -122,15 +132,17 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           {mentor.welcome.buttonText} →
         </motion.button>
 
-        {/* Disclaimer (optional) */}
+        {/* Disclaimer (optional) - same styling as callout */}
         {mentor.welcome.disclaimer && (
           <p style={{
-            fontFamily: "'Geist', -apple-system, sans-serif",
-            fontSize: '12px',
-            color: '#888888',
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: '20px',
+            fontWeight: '500',
+            fontStyle: 'italic',
+            color: '#333333',
             lineHeight: '1.5',
-            margin: '14px 0 0 0',
-            maxWidth: '400px',
+            margin: '16px 0 0 0',
+            maxWidth: '520px',
             textAlign: 'center',
           }}>
             {mentor.welcome.disclaimer}

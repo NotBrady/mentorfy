@@ -28,8 +28,25 @@ function getModel(agent: AgentConfig) {
 
 type RouteContext = { params: Promise<{ type: string }> }
 
-// Map flow + type to agent ID
-function getAgentId(flowId: string, type: string): string | undefined {
+// Map flow + type + promptKey to agent ID
+function getAgentId(flowId: string, type: string, promptKey?: string): string | undefined {
+  // Growth Operator v2 uses promptKey-based routing
+  if (flowId === 'growthoperator' && type === 'diagnosis' && promptKey) {
+    const promptKeyToAgent: Record<string, string> = {
+      'diagnosis-1': 'growthoperator-diagnosis-1',
+      'diagnosis-2': 'growthoperator-diagnosis-2',
+      'diagnosis-3': 'growthoperator-diagnosis-3',
+      'path-reveal': 'growthoperator-path-reveal',
+      'fit-assessment': 'growthoperator-fit-assessment',
+      // Legacy v1 prompt keys
+      'first-diagnosis': 'growthoperator-diagnosis',
+      'final-diagnosis': 'growthoperator-diagnosis',
+    }
+    if (promptKeyToAgent[promptKey]) {
+      return promptKeyToAgent[promptKey]
+    }
+  }
+
   const flowAgents: Record<string, Record<string, string>> = {
     'rafael-tats': {
       diagnosis: 'rafael-diagnosis',
@@ -116,8 +133,8 @@ export async function POST(req: Request, context: RouteContext) {
     const flow = getFlow(flowId)
     const calendlyUrl = flow.embeds.calendlyUrl
 
-    // Get flow-specific agent
-    const agentId = getAgentId(flowId, type)
+    // Get flow-specific agent (with promptKey for GO v2 routing)
+    const agentId = getAgentId(flowId, type, promptKey)
     if (!agentId) {
       return new Response(JSON.stringify({ error: 'Invalid generation type' }), {
         status: 400,
@@ -141,8 +158,9 @@ export async function POST(req: Request, context: RouteContext) {
       })
     }
 
-    // Build tools only for final-diagnosis prompt (allows conditional booking)
-    const shouldIncludeTools = promptKey === 'final-diagnosis' && calendlyUrl
+    // Build tools for prompts that can show booking (final-diagnosis for v1, fit-assessment for v2)
+    const toolPromptKeys = ['final-diagnosis', 'fit-assessment']
+    const shouldIncludeTools = toolPromptKeys.includes(promptKey || '') && calendlyUrl
     const tools = shouldIncludeTools ? buildDiagnosisTools(calendlyUrl) : undefined
 
     // Build user message with sanitized context (removes phase/step references)

@@ -11,6 +11,7 @@ export interface MentorConfig {
   handle: string
   avatar: string
   welcome: {
+    callout?: string
     headline: string
     subheadline: string
     buttonText: string
@@ -41,6 +42,15 @@ export interface StepConfig {
   copyAboveVideo?: string
   copyBelowVideo?: string
   calendlyUrl?: string
+  // Personalized question generation
+  baseQuestion?: string
+  personalizePromptKey?: string
+  // Disqualification exit condition
+  exitCondition?: {
+    values: string[]
+    headline: string
+    message: string
+  }
 }
 
 export interface ContactField {

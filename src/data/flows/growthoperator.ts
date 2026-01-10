@@ -4,14 +4,15 @@ export const growthoperatorFlow: FlowDefinition = {
   id: 'growthoperator',
 
   mentor: {
-    name: 'Growth Operator',
+    name: 'Brady Badour',
     handle: '@growthoperator',
     avatar: '/brady.jpg',
     welcome: {
-      headline: "We're Looking For 50 Serious Operators To Partner With Experts To Sell $5k-$15k AI Products",
-      subheadline: 'We Train You. We Find The Expert. You Run The Business.\n\nTake Our 5-Minute Assessment To See If You Qualify To Work With Us 1-on-1',
-      buttonText: 'See If I Qualify',
-      disclaimer: 'Warning: This will analyze your background, explain the model, and show you what you\'d actually be doing whether you qualify or not. Answer thoughtfully for the best experience.',
+      callout: "In the next 5-10 minutes I'll show you why online business hasn't worked for you yet...",
+      headline: "Then I'll show you the best business model for your situation in the new 2026 AI economy",
+      subheadline: '',
+      buttonText: 'Start Conversation',
+      disclaimer: 'Warning: This experience adapts based on your answers. Please thoughtfully respond to get the most value from this. Enjoy :)',
     },
   },
 
@@ -30,121 +31,137 @@ export const growthoperatorFlow: FlowDefinition = {
       id: 1,
       name: 'Assessment',
       steps: [
-        // Question 1: Situation
+        // Q1: What business models have you tried?
         {
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What's your current work situation?",
+          question: "Let's start easy. What have you tried?",
           options: [
-            { value: 'full-time', label: 'Working full-time for someone else' },
-            { value: 'part-time', label: 'Working part-time' },
-            { value: 'self-employed', label: 'Self-employed or freelancing' },
-            { value: 'own-business', label: 'Running my own business' },
-            { value: 'in-between', label: 'In between things right now' },
+            { value: 'ecommerce', label: 'Ecommerce (dropshipping, Amazon FBA, print on demand, reselling)' },
+            { value: 'agency', label: 'Agency / Services (SMMA, lead gen, web dev, AI automation, freelancing)' },
+            { value: 'sales', label: 'Sales (high ticket closing, appointment setting, dialing)' },
+            { value: 'content', label: 'Content Creation (YouTube, TikTok, podcast, newsletter, blog)' },
+            { value: 'education', label: 'Education Products (courses, coaching, consulting, communities)' },
+            { value: 'affiliate', label: 'Affiliate Marketing (Amazon, ClickBank, niche sites, network marketing)' },
+            { value: 'software', label: 'Software (SaaS, apps, Chrome extensions, no-code tools)' },
+            { value: 'investing', label: 'Investing (crypto, forex, stocks, options, real estate)' },
+            { value: 'not-tried-yet', label: 'I have not tried a business model yet' },
           ],
-          stateKey: 'assessment.situation',
+          stateKey: 'models.tried',
+          exitCondition: {
+            values: ['not-tried-yet'],
+            headline: 'This is not for you',
+            message: "This experience is designed for people who've already tried building something online.\n\nThe insights here won't land the same way if you haven't been through it yourself.\n\nWhen you've taken your first real swing at building something, come back. We'll be here.",
+          },
         },
-        // Question 2: Background
+
+        // Q2: What happened? (personalized based on Q1)
         {
           type: 'question',
-          questionType: 'multiple-choice',
-          question: "What's your professional background?",
-          options: [
-            { value: 'sales', label: 'Sales or business development' },
-            { value: 'marketing', label: 'Marketing or advertising' },
-            { value: 'operations', label: 'Operations or management' },
-            { value: 'tech', label: 'Tech or engineering' },
-            { value: 'finance', label: 'Finance or consulting' },
-            { value: 'creative', label: 'Creative or content' },
-            { value: 'other', label: 'Other' },
-          ],
-          stateKey: 'assessment.background',
+          questionType: 'long-answer',
+          baseQuestion: 'Tell me what happened. How far did you get? What made you stop?',
+          personalizePromptKey: 'q2-personalize',
+          placeholder: 'Be honest about what happened...',
+          stateKey: 'models.whatHappened',
         },
-        // Question 3: Experience
+
+        // Q3: Why do you think it didn't work? (personalized based on Q1 + Q2)
         {
           type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Have you tried building a business before?',
-          options: [
-            { value: 'no', label: 'No, this would be my first' },
-            { value: 'one-two', label: 'Yes, one or two attempts' },
-            { value: 'several', label: 'Yes, several attempts' },
-            { value: 'running-now', label: "Yes, I'm running one now" },
-          ],
-          stateKey: 'assessment.experience',
+          questionType: 'long-answer',
+          baseQuestion: 'Why didn\'t it work?',
+          personalizePromptKey: 'q3-personalize',
+          placeholder: 'What do you think went wrong...',
+          stateKey: 'models.whyFailed',
         },
-        // Question 4: Time
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: "This isn't a \"watch some videos\" thing. It's building a real business. How much time can you actually commit each week?",
-          options: [
-            { value: 'less-5', label: 'Less than 5 hours' },
-            { value: '5-10', label: '5-10 hours' },
-            { value: '10-20', label: '10-20 hours' },
-            { value: '20-plus', label: '20+ hours' },
-          ],
-          stateKey: 'assessment.time',
-        },
-        // Question 5: Capital
-        {
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: 'Every real business takes startup capital. What do you have available to invest in building this?',
-          options: [
-            { value: 'under-1k', label: 'Under $1,000' },
-            { value: '1k-5k', label: '$1,000 - $5,000' },
-            { value: '5k-10k', label: '$5,000 - $10,000' },
-            { value: '10k-plus', label: '$10,000+' },
-          ],
-          stateKey: 'assessment.capital',
-        },
-        // Contact Info
-        {
-          type: 'question',
-          questionType: 'contact-info',
-          question: 'Almost done. Enter your details to get your personalized analysis.',
-          fields: [
-            { key: 'name', label: 'First name', type: 'text', placeholder: 'Your first name', autoComplete: 'given-name' },
-            { key: 'email', label: 'Email', type: 'email', placeholder: 'your@email.com', autoComplete: 'email' },
-            { key: 'phone', label: 'Phone', type: 'tel', placeholder: '(555) 123-4567', autoComplete: 'tel' },
-          ],
-          stateKey: 'user',
-        },
-        // First AI Diagnosis
+
+        // Diagnosis 1: Problem with that specific model
         {
           type: 'ai-moment',
-          promptKey: 'first-diagnosis',
+          promptKey: 'diagnosis-1',
           skipThinking: true,
         },
-        // Question 6: What's Really Going On
-        {
-          type: 'question',
-          questionType: 'long-answer',
-          question: "What's actually going on in your life right now that made you stop and pay attention to this?",
-          placeholder: 'Be honest...',
-          stateKey: 'assessment.whatsGoingOn',
-        },
-        // Question 7: Why This
-        {
-          type: 'question',
-          questionType: 'long-answer',
-          question: "You've probably seen a hundred opportunities. What's different about this one?",
-          placeholder: 'What caught your attention...',
-          stateKey: 'assessment.whyThis',
-        },
-        // Question 8: Why You
-        {
-          type: 'question',
-          questionType: 'long-answer',
-          question: 'We get hundreds of people through this page. We accept less than 50 to work with us directly. Why should you be one of them?',
-          placeholder: 'Make your case...',
-          stateKey: 'assessment.whyYou',
-        },
-        // Final AI Diagnosis (with conditional booking via tool)
+
+        // Diagnosis 2: The reframe (bigger pattern)
         {
           type: 'ai-moment',
-          promptKey: 'final-diagnosis',
+          promptKey: 'diagnosis-2',
+          skipThinking: true,
+        },
+
+        // Diagnosis 3: Setup for path + future pace
+        {
+          type: 'ai-moment',
+          promptKey: 'diagnosis-3',
+          skipThinking: true,
+        },
+
+        // Q4: Vision - what would change
+        {
+          type: 'question',
+          questionType: 'long-answer',
+          question: "Imagine this works. You're making $15K-$25K a month six months from now.\n\nWhat would actually change in your life?",
+          placeholder: 'What would be different...',
+          stateKey: 'vision.whatChanges',
+        },
+
+        // Q5: Why now
+        {
+          type: 'question',
+          questionType: 'long-answer',
+          question: "You've seen opportunities before. You've scrolled past 100s of ads.\n\nBut you're still here.\n\nWhy today? What's actually going on that made you stop and pay attention to this?",
+          placeholder: 'Be real about what brought you here...',
+          stateKey: 'vision.whyNow',
+        },
+
+        // Q6: Commitment
+        {
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "This is NOT a side project.\n\nThis is building a real business. It takes real commitment. Real focus. Real work.\n\nAre you ready for that?",
+          options: [
+            { value: 'yes', label: "Yes, I'm ready" },
+            { value: 'not-ready', label: 'Not yet' },
+          ],
+          stateKey: 'commitment.ready',
+          exitCondition: {
+            values: ['not-ready'],
+            headline: "That's honest",
+            message: "Most people aren't ready. And there's no shame in that.\n\nBuilding something real takes everything you've got. If you're not there yet, you're not there yet.\n\nWhen you are ready—really ready—come back. The opportunity isn't going anywhere.",
+          },
+        },
+
+        // Q7: Investment capital
+        {
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "Building a real business takes capital. The more you have, the faster you can move.\n\nHow much do you have available to invest in building this?",
+          options: [
+            { value: 'under-1k', label: 'Less than $1K' },
+            { value: '1k-5k', label: '$1K - $5K' },
+            { value: '5k-10k', label: '$5K - $10K' },
+            { value: '10k-25k', label: '$10K - $25K' },
+            { value: '25k-plus', label: '$25K+' },
+          ],
+          stateKey: 'commitment.capital',
+          exitCondition: {
+            values: ['under-1k'],
+            headline: 'Not quite yet',
+            message: "Every real business takes startup capital. Under $1K makes it nearly impossible to move fast enough.\n\nThis isn't about gatekeeping. It's about setting you up to actually succeed.\n\nWhen you've got at least $1K-$5K to invest in building this properly, come back. The model will still be here.",
+          },
+        },
+
+        // Path Reveal: The opportunity explained
+        {
+          type: 'ai-moment',
+          promptKey: 'path-reveal',
+          skipThinking: true,
+        },
+
+        // Fit Assessment: Stack the offer + conditional booking
+        {
+          type: 'ai-moment',
+          promptKey: 'fit-assessment',
           skipThinking: true,
         },
       ],

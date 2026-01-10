@@ -190,6 +190,11 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
     dispatch({ type: 'SET_SCREEN', payload: 'level-flow' })
   }
 
+  // Back from initial Level Flow → Welcome
+  const handleBackToWelcome = () => {
+    dispatch({ type: 'SET_SCREEN', payload: 'welcome' })
+  }
+
   // Initial Level Complete (fullscreen Phase 1) → Show celebration → Experience Shell
   const handleInitialLevelComplete = (lastAnswer?: Record<string, any>) => {
     gatePhaseTransition(currentPhaseNumber, () => {
@@ -313,6 +318,7 @@ function FlowContent({ flow }: { flow: FlowDefinition }) {
             key={`level-${currentPhaseNumber}`}
             levelId={currentPhaseNumber}
             onComplete={handleInitialLevelComplete}
+            onBack={handleBackToWelcome}
             flowId={flow.id}
           />
         )}

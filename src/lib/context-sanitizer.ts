@@ -37,7 +37,7 @@ type SessionContext = {
     pricingFear?: string
     doubleRevenue?: string
   }
-  // Growth Operator flow structure
+  // Growth Operator v1 flow structure (legacy)
   assessment?: {
     situation?: string
     background?: string
@@ -47,6 +47,20 @@ type SessionContext = {
     whatsGoingOn?: string
     whyThis?: string
     whyYou?: string
+  }
+  // Growth Operator v2 flow structure
+  models?: {
+    tried?: string
+    whatHappened?: string
+    whyFailed?: string
+  }
+  vision?: {
+    whatChanges?: string
+    whyNow?: string
+  }
+  commitment?: {
+    ready?: string
+    capital?: string
   }
   // Common fields
   progress?: {
@@ -93,7 +107,7 @@ type SanitizedContext = {
     mainFear?: string
     revenueGoals?: string
   }
-  // Growth Operator sanitized output
+  // Growth Operator v1 sanitized output (legacy)
   applicantProfile?: {
     currentSituation?: string
     professionalBackground?: string
@@ -103,6 +117,20 @@ type SanitizedContext = {
     motivation?: string
     whyThisOpportunity?: string
     pitchForSelection?: string
+  }
+  // Growth Operator v2 sanitized output
+  businessModelHistory?: {
+    modelTried?: string
+    whatHappened?: string
+    whyTheyThinkItFailed?: string
+  }
+  futureVision?: {
+    whatWouldChange?: string
+    whyNow?: string
+  }
+  readiness?: {
+    isCommitted?: string
+    availableCapital?: string
   }
 }
 
@@ -174,7 +202,7 @@ export function sanitizeContextForAI(context: SessionContext): SanitizedContext 
     }
   }
 
-  // Growth Operator: applicant profile from assessment
+  // Growth Operator v1: applicant profile from assessment (legacy)
   if (context.assessment) {
     const applicantProfile = removeEmpty({
       currentSituation: context.assessment.situation,
@@ -188,6 +216,40 @@ export function sanitizeContextForAI(context: SessionContext): SanitizedContext 
     })
     if (Object.keys(applicantProfile).length > 0) {
       sanitized.applicantProfile = applicantProfile
+    }
+  }
+
+  // Growth Operator v2: business model history
+  if (context.models) {
+    const businessModelHistory = removeEmpty({
+      modelTried: context.models.tried,
+      whatHappened: context.models.whatHappened,
+      whyTheyThinkItFailed: context.models.whyFailed,
+    })
+    if (Object.keys(businessModelHistory).length > 0) {
+      sanitized.businessModelHistory = businessModelHistory
+    }
+  }
+
+  // Growth Operator v2: future vision
+  if (context.vision) {
+    const futureVision = removeEmpty({
+      whatWouldChange: context.vision.whatChanges,
+      whyNow: context.vision.whyNow,
+    })
+    if (Object.keys(futureVision).length > 0) {
+      sanitized.futureVision = futureVision
+    }
+  }
+
+  // Growth Operator v2: readiness/commitment
+  if (context.commitment) {
+    const readiness = removeEmpty({
+      isCommitted: context.commitment.ready,
+      availableCapital: context.commitment.capital,
+    })
+    if (Object.keys(readiness).length > 0) {
+      sanitized.readiness = readiness
     }
   }
 

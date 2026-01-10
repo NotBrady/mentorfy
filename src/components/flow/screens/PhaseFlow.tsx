@@ -4,11 +4,7 @@ import { useState, useEffect, useRef, MutableRefObject } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { GlassHeader } from '../shared/GlassHeader'
-
-// Normalize markdown to ensure ## headers are properly separated
-function normalizeMarkdown(content: string): string {
-  return content.replace(/([^\n])\n?(## )/g, '$1\n\n$2')
-}
+import { DisqualificationScreen } from './DisqualificationScreen'
 import { StepProgress } from '../shared/StepProgress'
 import { ThinkingAnimation } from '../shared/ThinkingAnimation'
 import { WhopCheckoutEmbed } from '@whop/checkout/react'
@@ -17,6 +13,11 @@ import { getFlow } from '@/data/flows'
 import { useUser, useUserState, useSessionId } from '@/context/UserContext'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS } from '@/config/flow'
+
+// Normalize markdown to ensure ## headers are properly separated
+function normalizeMarkdown(content: string): string {
+  return content.replace(/([^\n])\n?(## )/g, '$1\n\n$2')
+}
 
 interface MultipleChoiceStepContentProps {
   step: any
@@ -95,12 +96,113 @@ function MultipleChoiceStepContent({ step, onAnswer }: MultipleChoiceStepContent
 interface LongAnswerStepContentProps {
   step: any
   onAnswer: (stateKey: string, value: string) => void
+  sessionId?: string
 }
 
-function LongAnswerStepContent({ step, onAnswer }: LongAnswerStepContentProps) {
+function LongAnswerStepContent({ step, onAnswer, sessionId }: LongAnswerStepContentProps) {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const [fullQuestion, setFullQuestion] = useState<string | null>(null) // Full text from API
+  const [displayedQuestion, setDisplayedQuestion] = useState('') // Text being typed out
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(!!step.personalizePromptKey)
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingComplete, setTypingComplete] = useState(false)
   const isValid = value.trim().length >= 3
+
+  // Track if we need to initialize for personalized questions
+  const needsPersonalization = !!step.personalizePromptKey
+
+  // Fetch personalized question if step has personalizePromptKey
+  useEffect(() => {
+    if (!step.personalizePromptKey || !sessionId) return
+
+    const abortController = new AbortController()
+    let cancelled = false
+
+    // Reset all typing animation states
+    setIsWaitingForResponse(true)
+    setIsTyping(false)
+    setTypingComplete(false)
+    setDisplayedQuestion('')
+    setFullQuestion(null)
+
+    const fetchWithRetry = async (retries = 2): Promise<void> => {
+      try {
+        const res = await fetch('/api/generate/personalize-question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            baseQuestion: step.baseQuestion || step.question,
+            promptKey: step.personalizePromptKey,
+          }),
+          signal: abortController.signal,
+        })
+
+        // Retry on rate limit
+        if (res.status === 429 && retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          return fetchWithRetry(retries - 1)
+        }
+
+        if (!res.ok) throw new Error('Failed to personalize question')
+
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        const decoder = new TextDecoder()
+        let fullText = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fullText += decoder.decode(value, { stream: true })
+        }
+
+        if (!cancelled) {
+          setFullQuestion(fullText.trim())
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError' || cancelled) return
+        console.error('Error personalizing question:', err)
+        if (!cancelled) {
+          setFullQuestion(step.baseQuestion || step.question)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsWaitingForResponse(false)
+        }
+      }
+    }
+
+    fetchWithRetry()
+
+    return () => {
+      cancelled = true
+      abortController.abort()
+    }
+  }, [step.personalizePromptKey, step.baseQuestion, step.question, sessionId])
+
+  // Start typing immediately once we have the full question
+  useEffect(() => {
+    if (!fullQuestion || typingComplete) return
+    setIsTyping(true)
+  }, [fullQuestion, typingComplete])
+
+  // Type out characters one by one - faster speed
+  useEffect(() => {
+    if (!isTyping || !fullQuestion) return
+
+    if (displayedQuestion.length < fullQuestion.length) {
+      const typeSpeed = 12 + Math.random() * 12 // 12-24ms per character for snappier feel
+      const timeout = setTimeout(() => {
+        setDisplayedQuestion(fullQuestion.slice(0, displayedQuestion.length + 1))
+      }, typeSpeed)
+      return () => clearTimeout(timeout)
+    } else {
+      setIsTyping(false)
+      setTypingComplete(true)
+    }
+  }, [isTyping, displayedQuestion, fullQuestion])
 
   const handleSubmit = () => {
     if (isValid) {
@@ -108,29 +210,80 @@ function LongAnswerStepContent({ step, onAnswer }: LongAnswerStepContentProps) {
     }
   }
 
-  return (
-    <div style={{
-      maxWidth: '540px',
-      margin: '0 auto',
-      padding: '140px 24px 48px',
-      width: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Progress is now persistent in parent */}
+  // Determine which question to display
+  const displayQuestion = step.personalizePromptKey
+    ? (typingComplete ? fullQuestion : displayedQuestion) || ''
+    : step.question
 
-      {/* Question - Main Focus (no avatar) */}
+  // Check if we should show the cursor (waiting, or typing but not complete)
+  const showCursor = step.personalizePromptKey && (isWaitingForResponse || isTyping || (!typingComplete && fullQuestion))
+
+  return (
+    <>
+      <style>{`
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
       <div style={{
-        fontFamily: "'Lora', Charter, Georgia, serif",
-        fontSize: '24px',
-        fontWeight: '600',
-        color: '#000',
-        textAlign: 'center',
-        lineHeight: '1.4',
-        marginBottom: '32px',
+        maxWidth: '540px',
+        margin: '0 auto',
+        padding: '140px 24px 48px',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
-        {step.question}
-      </div>
+        {/* Progress is now persistent in parent */}
+
+        {/* Question - Main Focus with typing animation for personalized questions */}
+        <div
+          className={step.personalizePromptKey ? 'personalized-question-markdown' : ''}
+          style={{
+            fontFamily: "'Lora', Charter, Georgia, serif",
+            fontSize: step.personalizePromptKey ? '18px' : '24px',
+            fontWeight: step.personalizePromptKey ? '500' : '600',
+            color: '#000',
+            textAlign: step.personalizePromptKey ? 'left' : 'center',
+            lineHeight: '1.5',
+            marginBottom: '32px',
+            minHeight: showCursor ? '80px' : undefined,
+          }}
+        >
+          {step.personalizePromptKey ? (
+            <>
+              <style>{`
+                .personalized-question-markdown p {
+                  margin: 0 0 16px 0;
+                }
+                .personalized-question-markdown p:last-child {
+                  margin-bottom: 0;
+                }
+                .personalized-question-markdown strong {
+                  font-weight: 600;
+                }
+                .personalized-question-markdown em {
+                  font-style: italic;
+                }
+              `}</style>
+              <ReactMarkdown>{displayQuestion}</ReactMarkdown>
+            </>
+          ) : (
+            displayQuestion
+          )}
+          {/* Blinking cursor while waiting or typing */}
+          {showCursor && (
+            <span style={{
+              display: 'inline-block',
+              width: '2px',
+              height: '1em',
+              backgroundColor: '#000',
+              marginLeft: '2px',
+              verticalAlign: 'text-bottom',
+              animation: 'cursorBlink 1s step-end infinite',
+            }} />
+          )}
+        </div>
 
       {/* Text Area - Inner shadow styling (typing into the page) */}
       <div style={{
@@ -194,6 +347,7 @@ function LongAnswerStepContent({ step, onAnswer }: LongAnswerStepContentProps) {
         </motion.button>
       </div>
     </div>
+    </>
   )
 }
 
@@ -389,7 +543,7 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
   // If skipThinking is true, start directly in 'waiting' phase (wait for response, then stream)
   const [phase, setPhase] = useState<'typing' | 'pausing' | 'deleting' | 'transitioning' | 'waiting' | 'streaming'>(step.skipThinking ? 'waiting' : 'typing')
 
-  // Streaming state - now driven by real streaming from API
+  // Streaming state - driven by real streaming from API
   const [streamingComplete, setStreamingComplete] = useState(false)
 
   const thinkingMessages = [
@@ -614,11 +768,18 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
                 font-size: 17px;
                 line-height: 1.75;
                 color: #222;
-                margin: 0 0 16px 0;
+                margin: 0 0 20px 0;
+              }
+              .ai-moment-markdown p:last-child {
+                margin-bottom: 0;
               }
               .ai-moment-markdown strong {
                 font-weight: 600;
                 color: #000;
+              }
+              .ai-moment-markdown em {
+                font-style: italic;
+                color: #444;
               }
               .ai-moment-markdown ul, .ai-moment-markdown ol {
                 font-size: 17px;
@@ -1586,6 +1747,12 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep)
   const [direction, setDirection] = useState(1) // 1 = forward, -1 = back
 
+  // Exit condition state for disqualification
+  const [exitCondition, setExitCondition] = useState<{
+    headline: string
+    message: string
+  } | null>(null)
+
   // Reset step index when levelId changes (new phase)
   useEffect(() => {
     if (state.progress.currentPhase === levelId) {
@@ -1641,6 +1808,17 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     return <div style={{ backgroundColor: COLORS.BACKGROUND, minHeight: '100vh' }} />
   }
 
+  // Render disqualification screen if exit condition was triggered
+  if (exitCondition) {
+    return (
+      <DisqualificationScreen
+        headline={exitCondition.headline}
+        message={exitCondition.message}
+        flowId={flowId}
+      />
+    )
+  }
+
   // Current step number for progress indicator (0-indexed)
   const currentStepNumber = currentStepIndex
 
@@ -1663,6 +1841,15 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       answerText: typeof value === 'string' && value.length > 20 ? value : undefined,
       answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined,
     })
+
+    // Check for exit condition (disqualification)
+    if (step.exitCondition && step.exitCondition.values.includes(value)) {
+      setExitCondition({
+        headline: step.exitCondition.headline,
+        message: step.exitCondition.message,
+      })
+      return // Don't proceed to next step
+    }
 
     const nextStepIndex = currentStepIndex + 1
     const isLastStep = nextStepIndex >= level.steps.length
@@ -1750,6 +1937,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
               key={currentStepIndex}
               step={currentStep}
               onAnswer={handleAnswer}
+              sessionId={state.sessionId || undefined}
             />
           )
         }
