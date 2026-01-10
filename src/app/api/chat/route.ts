@@ -195,7 +195,8 @@ export async function POST(req: Request) {
     // Build context from session + memories
     // Sanitize context to remove phase/step references before sending to AI
     const contextParts: string[] = []
-    const sanitizedContext = sanitizeContextForAI(sessionData.context)
+    const flowId = sessionData.flow_id || 'rafael-tats'
+    const sanitizedContext = sanitizeContextForAI(flowId, sessionData.context)
 
     if (Object.keys(sanitizedContext).length > 0) {
       contextParts.push(`User context: ${JSON.stringify(sanitizedContext)}`)

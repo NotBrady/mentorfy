@@ -167,7 +167,7 @@ export async function POST(req: Request, context: RouteContext) {
     const tools = shouldIncludeTools ? buildDiagnosisTools(calendlyUrl) : undefined
 
     // Build user message with sanitized context (removes phase/step references)
-    const sanitizedContext = sanitizeContextForAI(session.context)
+    const sanitizedContext = sanitizeContextForAI(flowId, session.context)
     const contextStr = JSON.stringify(sanitizedContext, null, 2)
     const historyStr = conversationHistory
       ? `\n\nConversation history:\n${conversationHistory}`

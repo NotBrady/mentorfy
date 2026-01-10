@@ -91,7 +91,8 @@ export async function POST(req: Request) {
     })
 
     // Build user message with sanitized context
-    const sanitizedContext = sanitizeContextForAI(session.context)
+    const flowId = session.flow_id || 'growthoperator'
+    const sanitizedContext = sanitizeContextForAI(flowId, session.context)
     const contextStr = JSON.stringify(sanitizedContext, null, 2)
 
     const userMessage = `User context:\n${contextStr}\n\nBase question to personalize: "${baseQuestion}"\n\nGenerate the personalized question.`
