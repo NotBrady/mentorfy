@@ -63,6 +63,7 @@ export const growthoperatorFlow: FlowDefinition = {
           personalizePromptKey: 'q2-personalize',
           placeholder: 'Be honest about what happened...',
           stateKey: 'models.whatHappened',
+          noBackButton: true, // First step of Phase C, cannot go back to Phase B
         },
 
         // Q3: Why do you think it didn't work? (personalized based on Q1 + Q2)

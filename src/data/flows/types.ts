@@ -51,6 +51,8 @@ export interface StepConfig {
     headline: string
     message: string
   }
+  // Explicitly hide back button on this step (for phase boundaries)
+  noBackButton?: boolean
 }
 
 export interface ContactField {
