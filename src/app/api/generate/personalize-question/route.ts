@@ -2,7 +2,7 @@ import { streamText } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { db } from '@/lib/db'
 import { getAgent } from '@/agents/registry'
-import { createTrace, flushLangfuse } from '@/lib/langfuse'
+import { createTrace, flushLangfuse, getAgentPrompt } from '@/lib/langfuse'
 import { generateLimiter, checkRateLimit, rateLimitResponse, getIdentifier } from '@/lib/ratelimit'
 import { sanitizeContextForAI } from '@/lib/context-sanitizer'
 
@@ -71,18 +71,23 @@ export async function POST(req: Request) {
       })
     }
 
+    // Fetch prompt from Langfuse (falls back to hardcoded if unavailable)
+    const { systemPrompt, langfusePrompt, promptVersion, promptName } = await getAgentPrompt(agentId)
+
     // Create Langfuse trace
     const trace = createTrace({
       name: 'personalize-question',
       sessionId,
       userId: session.clerk_user_id || undefined,
-      metadata: { agentId, promptKey },
+      metadata: { agentId, promptKey, promptName, promptVersion },
     })
 
     const generation = trace.generation({
       name: `claude-personalize`,
       model: agent.model,
       input: { context: session.context, baseQuestion, promptKey },
+      // Link to Langfuse prompt for version tracking
+      prompt: langfusePrompt,
     })
 
     // Build user message with sanitized context
@@ -93,7 +98,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: anthropic(agent.model),
-      system: agent.systemPrompt,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxOutputTokens: agent.maxTokens,
       temperature: agent.temperature,
