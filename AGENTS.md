@@ -37,6 +37,7 @@ A **work session** is when you are working on one or more **bd** issues.
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+- **NEVER push directly to main** - Always create a feature branch and push there
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
