@@ -231,6 +231,8 @@ export function useUserState() {
       email: session?.email ?? '',
       phone: session?.phone ?? '',
     },
+    // Raw answers object for direct access (e.g., models.whatHappened)
+    answers: session?.answers ?? {},
     situation: session?.answers?.situation ?? {},
     phase2: session?.answers?.phase2 ?? {},
     phase3: session?.answers?.phase3 ?? {},
