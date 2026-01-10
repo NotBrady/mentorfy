@@ -654,20 +654,22 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
   }, [displayText, phase, currentMessageIndex, response])
 
   // If transitioning or waiting but no response yet, wait
+  // Also check embedData.beforeText since tool calls may put all text there instead of response
+  const hasContent = response || embedData?.beforeText
   useEffect(() => {
-    if ((phase === 'transitioning' || phase === 'waiting') && !response) {
+    if ((phase === 'transitioning' || phase === 'waiting') && !hasContent) {
       // Keep waiting
-    } else if (phase === 'transitioning' && response) {
+    } else if (phase === 'transitioning' && hasContent) {
       const timeout = setTimeout(() => {
         setDisplayText('')
         setPhase('streaming')
       }, 100)
       return () => clearTimeout(timeout)
-    } else if (phase === 'waiting' && response) {
+    } else if (phase === 'waiting' && hasContent) {
       // Skip thinking, go straight to streaming
       setPhase('streaming')
     }
-  }, [phase, response])
+  }, [phase, hasContent])
 
   const isInThinkingPhase = phase === 'typing' || phase === 'pausing' || phase === 'deleting' || phase === 'transitioning'
   const isInWaitingPhase = phase === 'waiting'
