@@ -40,8 +40,8 @@ function getAgentId(flowId: string, type: string): string | undefined {
     },
   }
 
-  // Try flow-specific agent first, fall back to rafael
-  return flowAgents[flowId]?.[type] || flowAgents['rafael-tats']?.[type]
+  // Return flow-specific agent only - no fallback to prevent cross-flow contamination
+  return flowAgents[flowId]?.[type]
 }
 
 /**
@@ -102,8 +102,17 @@ export async function POST(req: Request, context: RouteContext) {
       })
     }
 
+    // Require flow_id - prevent cross-flow contamination from missing data
+    if (!session.flow_id) {
+      console.error(`Session ${sessionId} missing flow_id - cannot determine agent`)
+      return new Response(JSON.stringify({ error: 'Session missing flow_id' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     // Get flow config to access calendlyUrl for tools
-    const flowId = session.flow_id || 'rafael-tats'
+    const flowId = session.flow_id
     const flow = getFlow(flowId)
     const calendlyUrl = flow.embeds.calendlyUrl
 
