@@ -654,20 +654,22 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
   }, [displayText, phase, currentMessageIndex, response])
 
   // If transitioning or waiting but no response yet, wait
+  // Also check embedData.beforeText since tool calls may put all text there instead of response
+  const hasContent = response || embedData?.beforeText
   useEffect(() => {
-    if ((phase === 'transitioning' || phase === 'waiting') && !response) {
+    if ((phase === 'transitioning' || phase === 'waiting') && !hasContent) {
       // Keep waiting
-    } else if (phase === 'transitioning' && response) {
+    } else if (phase === 'transitioning' && hasContent) {
       const timeout = setTimeout(() => {
         setDisplayText('')
         setPhase('streaming')
       }, 100)
       return () => clearTimeout(timeout)
-    } else if (phase === 'waiting' && response) {
+    } else if (phase === 'waiting' && hasContent) {
       // Skip thinking, go straight to streaming
       setPhase('streaming')
     }
-  }, [phase, response])
+  }, [phase, hasContent])
 
   const isInThinkingPhase = phase === 'typing' || phase === 'pausing' || phase === 'deleting' || phase === 'transitioning'
   const isInWaitingPhase = phase === 'waiting'
@@ -1822,11 +1824,15 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   // Current step number for progress indicator (0-indexed)
   const currentStepNumber = currentStepIndex
 
-  // Determine if back button should be dimmed (AI moment, video, thinking, sales-page steps)
-  // BUT if we're on step 0 and can go back to previous panel, always allow it
+  // Determine if back button should be hidden
+  // Hide on: AI moments, videos, thinking, sales-page steps
+  // Also hide if: previous step is a non-question type (can't go back from questions to AI moments)
+  // Also hide if: step explicitly marks noBackButton (for phase boundaries)
   const isNonQuestionStep = currentStep.type === 'ai-moment' || currentStep.type === 'video' || currentStep.type === 'thinking' || currentStep.type === 'sales-page'
   const canExitToPanel = currentStepIndex === 0 && !!onBack
-  const shouldDimBackButton = isNonQuestionStep && !canExitToPanel
+  const previousStep = currentStepIndex > 0 ? level.steps[currentStepIndex - 1] : null
+  const isPreviousNonQuestion = previousStep && (previousStep.type === 'ai-moment' || previousStep.type === 'video' || previousStep.type === 'thinking' || previousStep.type === 'sales-page')
+  const shouldDimBackButton = (isNonQuestionStep || isPreviousNonQuestion || currentStep.noBackButton) && !canExitToPanel
 
   const handleAnswer = async (stateKey: string, value: any) => {
     // Track step_completed
@@ -1837,6 +1843,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       phaseName: level!.name,
       phaseStepIndex: currentStepIndex,
       stepType: step.type,
+      stepKey: step.stepKey,
       answerKey: stateKey,
       answerText: typeof value === 'string' && value.length > 20 ? value : undefined,
       answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined,
@@ -1994,8 +2001,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       {!hideHeader && (
         <GlassHeader
           onBack={goToPreviousStep}
-          showBackButton={currentStepIndex > 0 || !!onBack}
-          dimBackButton={shouldDimBackButton}
+          showBackButton={(currentStepIndex > 0 || !!onBack) && !shouldDimBackButton}
           useAbsolutePosition={!!onBack}
           flowId={flowId}
         />

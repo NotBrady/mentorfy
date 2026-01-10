@@ -28,6 +28,7 @@ export interface PhaseConfig {
 }
 
 export interface StepConfig {
+  stepKey: string
   type: 'question' | 'ai-moment' | 'sales-page' | 'video' | 'thinking'
   question?: string
   questionType?: 'multiple-choice' | 'long-answer' | 'contact-info'
@@ -51,6 +52,8 @@ export interface StepConfig {
     headline: string
     message: string
   }
+  // Explicitly hide back button on this step (for phase boundaries)
+  noBackButton?: boolean
 }
 
 export interface ContactField {

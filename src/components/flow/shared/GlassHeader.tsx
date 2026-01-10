@@ -6,14 +6,13 @@ import { MentorBadge } from './MentorBadge'
 interface Props {
   onBack?: () => void
   showBackButton?: boolean
-  dimBackButton?: boolean
   useAbsolutePosition?: boolean
   flowId?: string
 }
 
 // Glass Header
 // useAbsolutePosition: true for panels in TimelineShell to avoid overlap
-export function GlassHeader({ onBack, showBackButton = true, dimBackButton = false, useAbsolutePosition = false, flowId }: Props) {
+export function GlassHeader({ onBack, showBackButton = true, useAbsolutePosition = false, flowId }: Props) {
   return (
     <div style={{
       position: useAbsolutePosition ? 'absolute' : 'fixed',
@@ -38,29 +37,32 @@ export function GlassHeader({ onBack, showBackButton = true, dimBackButton = fal
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         boxShadow: '0 4px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
       }}>
-        {/* Back Arrow */}
-        <div
-          onClick={showBackButton && !dimBackButton ? onBack : undefined}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            color: '#666',
-            background: '#F0EBE4',
-            border: '1px solid #E8E3DC',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-            cursor: showBackButton && !dimBackButton ? 'pointer' : 'default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: dimBackButton ? 0.3 : 1,
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </div>
+        {/* Back Arrow - hidden when showBackButton is false */}
+        {showBackButton ? (
+          <div
+            onClick={onBack}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              color: '#666',
+              background: '#F0EBE4',
+              border: '1px solid #E8E3DC',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </div>
+        ) : (
+          <div style={{ width: '32px', height: '32px' }} />
+        )}
 
         {/* Center - Avatar + Rafael Label */}
         <div

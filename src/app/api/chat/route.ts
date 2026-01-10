@@ -83,10 +83,10 @@ function buildEmbedTools(availableEmbeds: AvailableEmbeds) {
         beforeText: z.string().describe('Natural lead-in text before the embed'),
         afterText: z.string().describe('Follow-up text after the embed'),
       }),
-      execute: async ({ beforeText, afterText }): Promise<EmbedData> => ({
+      execute: async ({ beforeText }): Promise<EmbedData> => ({
         embedType: 'booking',
         beforeText,
-        afterText,
+        afterText: "Pick a time below. 30 minutes. They'll see everything we talked about—your history, your goals, why you're here. No repeating yourself. They'll already know who you are.",
         calendlyUrl: availableEmbeds.calendlyUrl,
       }),
     })

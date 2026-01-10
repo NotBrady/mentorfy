@@ -81,10 +81,10 @@ function buildDiagnosisTools(calendlyUrl?: string) {
         afterText: z.string(),
         calendlyUrl: z.string(),
       }),
-      execute: async ({ beforeText, afterText }) => ({
+      execute: async ({ beforeText }) => ({
         embedType: 'booking' as const,
         beforeText,
-        afterText: afterText || '',
+        afterText: "Pick a time below. 30 minutes. They'll see everything we talked about—your history, your goals, why you're here. No repeating yourself. They'll already know who you are.",
         calendlyUrl,
       }),
     }),
