@@ -439,7 +439,8 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
               if (data.type === 'text-delta' && data.delta) {
                 fullText += data.delta
                 setResponse(fullText)
-              } else if (data.type === 'tool-result' && data.output?.embedType) {
+              } else if (data.type === 'tool-output-available' && data.output?.embedType) {
+                // AI SDK UI message stream sends tool outputs as 'tool-output-available'
                 setEmbedData(data.output)
               }
             } catch { /* skip invalid JSON */ }
