@@ -1843,6 +1843,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       phaseName: level!.name,
       phaseStepIndex: currentStepIndex,
       stepType: step.type,
+      stepKey: step.stepKey,
       answerKey: stateKey,
       answerText: typeof value === 'string' && value.length > 20 ? value : undefined,
       answerValue: typeof value === 'string' && value.length <= 20 ? value : undefined,

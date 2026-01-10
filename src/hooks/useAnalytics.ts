@@ -53,6 +53,7 @@ export function useAnalytics(context: AnalyticsContext) {
       phaseName: string
       phaseStepIndex: number     // Position within this phase (0-indexed)
       stepType: string
+      stepKey: string            // Unique identifier for this step (e.g., 'q1-models-tried')
       answerKey?: string         // Which question (null for non-questions)
       answerValue?: string       // Multiple choice value (null for long-form)
       answerText?: string        // Full long-form text (null for multiple choice)
@@ -61,6 +62,7 @@ export function useAnalytics(context: AnalyticsContext) {
       posthog?.capture('step_completed', {
         ...baseProps,
         step_id: `phase-${props.phaseId}-step-${props.phaseStepIndex}`,
+        step_key: props.stepKey,
         step_type: props.stepType,
         step_index: props.stepIndex,
         phase_id: props.phaseId,
