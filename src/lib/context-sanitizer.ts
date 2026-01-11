@@ -1,24 +1,14 @@
 /**
  * Sanitizes session context before sending to AI agents.
  *
- * - Strips internal tracking fields (progress, phase/step indices)
- * - Applies flow's contextMapping to transform keys into semantic labels
- * - Keeps user name for personalization, omits phone/email for privacy
+ * Transforms implementation-specific keys into semantic labels using
+ * the flow's contextMapping. This prevents agents from mentioning
+ * internal structure like "phases" or "steps" which breaks immersion.
  */
 
 import { getFlow } from '@/data/flows'
 
 type SessionContext = Record<string, unknown>
-
-// Fields to always remove from context before sending to AI
-const INTERNAL_FIELDS = [
-  'progress',
-  'currentPhase',
-  'currentStep',
-  'completedPhases',
-  'phaseIndex',
-  'stepIndex',
-]
 
 /**
  * Gets a nested value from an object using dot notation path
@@ -72,33 +62,8 @@ function removeEmptyValues(obj: any): any {
 }
 
 /**
- * Strips internal fields recursively from context
- */
-function stripInternalFields(context: SessionContext): SessionContext {
-  const result: SessionContext = {}
-
-  for (const [key, value] of Object.entries(context)) {
-    if (INTERNAL_FIELDS.includes(key)) continue
-
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const nested = stripInternalFields(value as SessionContext)
-      if (Object.keys(nested).length > 0) {
-        result[key] = nested
-      }
-    } else {
-      result[key] = value
-    }
-  }
-
-  return result
-}
-
-/**
- * Transforms raw session context into AI-friendly format.
- *
- * 1. Strips internal tracking fields (progress, indices)
- * 2. If flow has contextMapping, applies it to transform keys
- * 3. Keeps user name for personalization
+ * Transforms raw session context into AI-friendly semantic labels.
+ * Uses the flow's contextMapping to transform keys.
  */
 export function sanitizeContextForAI(
   flowId: string,
@@ -108,31 +73,29 @@ export function sanitizeContextForAI(
     return {}
   }
 
-  // Get the flow's context mapping
   const flow = getFlow(flowId)
   const mapping = flow.contextMapping
 
-  // If flow has contextMapping, use it for explicit key transformation
-  if (mapping && Object.keys(mapping).length > 0) {
-    const sanitized: SessionContext = {}
-
-    // Keep user name for personalization
-    const userName = getNestedValue(context, 'user.name')
-    if (userName) {
-      sanitized.user = { name: userName }
-    }
-
-    // Apply the flow's context mapping
-    for (const [outputPath, inputPath] of Object.entries(mapping)) {
-      const value = getNestedValue(context, inputPath)
-      if (value !== undefined && value !== '' && value !== null) {
-        setNestedValue(sanitized, outputPath, value)
-      }
-    }
-
-    return removeEmptyValues(sanitized)
+  if (!mapping) {
+    console.warn(`Flow "${flowId}" has no contextMapping - AI will receive empty context`)
+    return {}
   }
 
-  // No contextMapping - just strip internal fields
-  return stripInternalFields(context)
+  const sanitized: SessionContext = {}
+
+  // Keep user name for personalization
+  const userName = getNestedValue(context, 'user.name')
+  if (userName) {
+    sanitized.user = { name: userName }
+  }
+
+  // Apply the flow's context mapping
+  for (const [outputPath, inputPath] of Object.entries(mapping)) {
+    const value = getNestedValue(context, inputPath)
+    if (value !== undefined && value !== '' && value !== null) {
+      setNestedValue(sanitized, outputPath, value)
+    }
+  }
+
+  return removeEmptyValues(sanitized)
 }
