@@ -13,6 +13,7 @@ import { growthoperatorDiagnosis3Agent } from './growthoperator/diagnosis-3'
 import { growthoperatorFinalDiagnosisAgent } from './growthoperator/final-diagnosis'
 import { growthoperatorPathRevealAgent } from './growthoperator/path-reveal'
 import { growthoperatorFitAssessmentAgent } from './growthoperator/fit-assessment'
+import { growthoperatorDiagnosisComprehensiveAgent } from './growthoperator/diagnosis-comprehensive'
 
 const agents: Record<string, AgentConfig> = {
   // Rafael TATS agents
@@ -30,6 +31,8 @@ const agents: Record<string, AgentConfig> = {
   'growthoperator-diagnosis-2': growthoperatorDiagnosis2Agent,
   'growthoperator-diagnosis-3': growthoperatorDiagnosis3Agent,
   'growthoperator-final-diagnosis': growthoperatorFinalDiagnosisAgent,
+  // Growth Operator v3 - comprehensive 8-screen diagnosis
+  'growthoperator-diagnosis-comprehensive': growthoperatorDiagnosisComprehensiveAgent,
   // Legacy (keeping for backwards compatibility)
   'growthoperator-path-reveal': growthoperatorPathRevealAgent,
   'growthoperator-fit-assessment': growthoperatorFitAssessmentAgent,

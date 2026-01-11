@@ -40,9 +40,11 @@ export interface PhaseConfig {
 
 export interface StepConfig {
   stepKey: string
-  type: 'question' | 'ai-moment' | 'sales-page' | 'video' | 'thinking'
+  type: 'question' | 'ai-moment' | 'sales-page' | 'video' | 'thinking' | 'loading' | 'diagnosis-sequence'
   question?: string
-  questionType?: 'multiple-choice' | 'long-answer' | 'contact-info'
+  questionType?: 'multiple-choice' | 'multi-select' | 'long-answer' | 'contact-info'
+  // Multi-select specific: instruction text shown below question
+  instruction?: string
   options?: { label: string; value: string }[]
   stateKey?: string
   placeholder?: string
@@ -65,6 +67,9 @@ export interface StepConfig {
   }
   // Explicitly hide back button on this step (for phase boundaries)
   noBackButton?: boolean
+  // Loading screen specific
+  loadingMessages?: string[]
+  minDuration?: number // Minimum display time in ms
 }
 
 export interface ContactField {
