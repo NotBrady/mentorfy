@@ -105,27 +105,79 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          buffer += decoder.decode(value, { stream: true })
+
+          const chunk = decoder.decode(value, { stream: true })
+          buffer += chunk
+
+          // Split on double newline (SSE event separator) or single newline
           const lines = buffer.split('\n')
           buffer = lines.pop() || ''
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
+            const trimmedLine = line.trim()
+            if (!trimmedLine) continue
+
+            // SSE format: data: {...}
+            if (trimmedLine.startsWith('data: ')) {
+              const jsonStr = trimmedLine.slice(6)
+              if (jsonStr === '[DONE]') continue
               try {
-                const data = JSON.parse(line.slice(6))
-                if (data.type === 'text-delta' && typeof data.delta === 'string') {
+                const data = JSON.parse(jsonStr)
+                // AI SDK 6.0 format: {"type": "text", "value": "..."}
+                if (data.type === 'text' && typeof data.value === 'string') {
+                  fullText += data.value
+                }
+                // AI SDK 6.0 alternative: {"type": "text", "content": "..."}
+                else if (data.type === 'text' && typeof data.content === 'string') {
+                  fullText += data.content
+                }
+                // AI SDK 5.0 format: {"type": "text-delta", "delta": "..."}
+                else if (data.type === 'text-delta' && typeof data.delta === 'string') {
                   fullText += data.delta
                 }
               } catch { /* skip invalid JSON */ }
             }
-            else if (line.startsWith('0:')) {
+            // Legacy UI stream format: 0:"text chunk"
+            else if (trimmedLine.startsWith('0:')) {
               try {
-                const textChunk = JSON.parse(line.slice(2))
+                const textChunk = JSON.parse(trimmedLine.slice(2))
                 if (typeof textChunk === 'string') {
                   fullText += textChunk
                 }
               } catch { /* skip invalid JSON */ }
             }
+          }
+        }
+
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          const trimmedLine = buffer.trim()
+          if (trimmedLine.startsWith('data: ')) {
+            const jsonStr = trimmedLine.slice(6)
+            if (jsonStr !== '[DONE]') {
+              try {
+                const data = JSON.parse(jsonStr)
+                // AI SDK 6.0 format: {"type": "text", "value": "..."}
+                if (data.type === 'text' && typeof data.value === 'string') {
+                  fullText += data.value
+                }
+                // AI SDK 6.0 alternative: {"type": "text", "content": "..."}
+                else if (data.type === 'text' && typeof data.content === 'string') {
+                  fullText += data.content
+                }
+                // AI SDK 5.0 format: {"type": "text-delta", "delta": "..."}
+                else if (data.type === 'text-delta' && typeof data.delta === 'string') {
+                  fullText += data.delta
+                }
+              } catch { /* skip invalid JSON */ }
+            }
+          } else if (trimmedLine.startsWith('0:')) {
+            try {
+              const textChunk = JSON.parse(trimmedLine.slice(2))
+              if (typeof textChunk === 'string') {
+                fullText += textChunk
+              }
+            } catch { /* skip invalid JSON */ }
           }
         }
 
@@ -136,8 +188,11 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
           screens[parseInt(match[1]) - 1] = match[2].trim()
         }
 
-        if (screens.length > 0) {
-          setDiagnosisScreens(screens)
+        // Filter out any undefined entries (in case of non-sequential screen numbers)
+        const validScreens = screens.filter(s => s !== undefined)
+
+        if (validScreens.length > 0) {
+          setDiagnosisScreens(validScreens)
           setDiagnosisReady(true)
         } else {
           // Check if the response indicates an error
