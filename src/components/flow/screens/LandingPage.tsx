@@ -9,19 +9,27 @@ import { getFlow } from '@/data/flows'
 const ACCENT_COLOR = '#10B981'
 const BACKGROUND_COLOR = '#FAF6F0'
 
-interface HeadlineWithAccentProps {
+interface TextWithAccentProps {
   text: string
+  patterns?: string[] // Phrases to highlight in green
 }
 
-// Helper to render headline with $2k-$10k in green
-function HeadlineWithAccent({ text }: HeadlineWithAccentProps) {
-  // Split on the dollar amount pattern
-  const parts = text.split(/(\$2k-\$10k)/i)
+// Helper to render text with specific phrases highlighted in green
+function TextWithAccent({ text, patterns = [] }: TextWithAccentProps) {
+  if (patterns.length === 0) {
+    return <>{text}</>
+  }
+
+  // Build regex from patterns (escape special chars, join with |)
+  const escapedPatterns = patterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const regex = new RegExp(`(${escapedPatterns.join('|')})`, 'gi')
+  const parts = text.split(regex)
 
   return (
     <>
       {parts.map((part, i) => {
-        if (part.toLowerCase() === '$2k-$10k') {
+        const isHighlighted = patterns.some(p => p.toLowerCase() === part.toLowerCase())
+        if (isHighlighted) {
           return (
             <span key={i} style={{ color: ACCENT_COLOR }}>
               {part}
@@ -94,48 +102,54 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           <MentorBadge flowId={flowId} />
         </motion.div>
 
-        {/* Callout (optional - the hook) */}
+        {/* Callout (optional - the hook) - italic, black, bold, one line */}
         {mentor.welcome.callout && (
           <motion.p
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '24px',
+              fontSize: '21px',
               fontWeight: '600',
+              fontStyle: 'italic',
               color: '#000000',
-              lineHeight: '1.35',
+              lineHeight: '1.45',
               margin: '0 0 8px 0',
-              maxWidth: '480px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {mentor.welcome.callout}
+            <TextWithAccent
+              text={mentor.welcome.callout}
+              patterns={flowId === 'growthoperator' ? ["still hasn't"] : ['$2k-$10k']}
+            />
           </motion.p>
         )}
 
-        {/* Headline - Supporting line */}
+        {/* Headline - Large bold text, sized so "haven't been told." orphans */}
         <motion.h1
           variants={item}
           style={{
             fontFamily: "'Lora', Charter, Georgia, serif",
-            fontSize: '19px',
-            fontWeight: '500',
-            fontStyle: 'italic',
-            color: '#555555',
-            lineHeight: '1.45',
-            margin: '0 0 32px 0',
-            maxWidth: '440px',
+            fontSize: '30px',
+            fontWeight: '600',
+            color: '#000000',
+            lineHeight: '1.3',
+            margin: '0 0 24px 0',
+            maxWidth: '480px',
           }}
         >
-          <HeadlineWithAccent text={mentor.welcome.headline} />
+          <TextWithAccent
+            text={mentor.welcome.headline}
+            patterns={flowId === 'growthoperator' ? ['not', "haven't been told"] : ['$2k-$10k']}
+          />
         </motion.h1>
 
-        {/* Subheadline */}
+        {/* Subheadline - same size as callout */}
         {mentor.welcome.subheadline && (
           <motion.p
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '15px',
+              fontSize: '21px',
               fontWeight: '400',
               color: '#666666',
               lineHeight: '1.5',
@@ -211,13 +225,13 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '13px',
+              fontSize: '16px',
               fontWeight: '400',
               fontStyle: 'italic',
               color: '#888888',
               lineHeight: '1.5',
               margin: '24px 0 0 0',
-              maxWidth: '420px',
+              maxWidth: '480px',
               textAlign: 'center',
             }}
           >

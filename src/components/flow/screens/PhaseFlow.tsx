@@ -13,6 +13,8 @@ import { getFlow } from '@/data/flows'
 import { useUser, useUserState, useSessionId } from '@/context/UserContext'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS } from '@/config/flow'
+import { LoadingScreenStepContent } from './LoadingScreenStepContent'
+import { DiagnosisSequenceFlow } from './DiagnosisSequenceFlow'
 
 // Normalize markdown to ensure ## headers are properly separated
 function normalizeMarkdown(content: string): string {
@@ -95,11 +97,23 @@ function MultipleChoiceStepContent({ step, onAnswer }: MultipleChoiceStepContent
         color: '#000',
         textAlign: 'left',
         lineHeight: '1.5',
-        marginBottom: '32px',
+        marginBottom: step.instruction ? '8px' : '32px',
       }}>
         {displayedQuestion || ''}
         {showCursor && <span className="typing-cursor" />}
       </div>
+
+      {/* Instruction text (optional) */}
+      {typingComplete && step.instruction && (
+        <div style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '14px',
+          color: '#666',
+          marginBottom: '24px',
+        }}>
+          {step.instruction}
+        </div>
+      )}
 
         {/* Options - fade in one at a time when typing complete */}
         <AnimatePresence>
@@ -152,6 +166,224 @@ function MultipleChoiceStepContent({ step, onAnswer }: MultipleChoiceStepContent
             </motion.div>
           )}
         </AnimatePresence>
+    </div>
+  )
+}
+
+interface MultiSelectStepContentProps {
+  step: any
+  onAnswer: (stateKey: string, value: string[]) => void
+}
+
+function MultiSelectStepContent({ step, onAnswer }: MultiSelectStepContentProps) {
+  const [selected, setSelected] = useState<string[]>([])
+
+  // Typing animation state
+  const [fullQuestion, setFullQuestion] = useState<string | null>(null)
+  const [displayedQuestion, setDisplayedQuestion] = useState('')
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(true)
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingComplete, setTypingComplete] = useState(false)
+
+  // Set fullQuestion after brief cursor delay
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setFullQuestion(step.question)
+      setIsWaitingForResponse(false)
+    }, 150)
+    return () => clearTimeout(delay)
+  }, [step.question])
+
+  // Start typing after brief pause once we have the question
+  useEffect(() => {
+    if (!fullQuestion || typingComplete) return
+    const delay = setTimeout(() => {
+      setIsTyping(true)
+    }, 200)
+    return () => clearTimeout(delay)
+  }, [fullQuestion, typingComplete])
+
+  // Type out characters
+  useEffect(() => {
+    if (!isTyping || !fullQuestion) return
+
+    if (displayedQuestion.length < fullQuestion.length) {
+      const typeSpeed = 8 + Math.random() * 8
+      const charsToAdd = 2
+      const timeout = setTimeout(() => {
+        setDisplayedQuestion(fullQuestion.slice(0, displayedQuestion.length + charsToAdd))
+      }, typeSpeed)
+      return () => clearTimeout(timeout)
+    } else {
+      setIsTyping(false)
+      setTypingComplete(true)
+    }
+  }, [isTyping, displayedQuestion, fullQuestion])
+
+  const handleToggle = (value: string) => {
+    setSelected(prev =>
+      prev.includes(value)
+        ? prev.filter(v => v !== value)
+        : [...prev, value]
+    )
+  }
+
+  const handleContinue = () => {
+    if (selected.length > 0) {
+      onAnswer(step.stateKey, selected)
+    }
+  }
+
+  const showCursor = isWaitingForResponse || (fullQuestion && !isTyping && !typingComplete)
+
+  return (
+    <div style={{
+      maxWidth: '480px',
+      margin: '0 auto',
+      padding: '140px 24px 48px',
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* Question with typing animation */}
+      <div style={{
+        fontFamily: "'Lora', Charter, Georgia, serif",
+        fontSize: '18px',
+        fontWeight: '500',
+        color: '#000',
+        textAlign: 'left',
+        lineHeight: '1.5',
+        marginBottom: '8px',
+      }}>
+        {displayedQuestion || ''}
+        {showCursor && <span className="typing-cursor" />}
+      </div>
+
+      {/* Instruction text */}
+      {typingComplete && step.instruction && (
+        <div style={{
+          fontFamily: "'Geist', -apple-system, sans-serif",
+          fontSize: '14px',
+          color: '#666',
+          marginBottom: '24px',
+        }}>
+          {step.instruction}
+        </div>
+      )}
+
+      {/* Options - fade in one at a time when typing complete */}
+      <AnimatePresence>
+        {typingComplete && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: {
+                transition: {
+                  staggerChildren: 0.06,
+                },
+              },
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+          >
+            {step.options.map((option: { value: string; label: string }) => {
+              const isSelected = selected.includes(option.value)
+              return (
+                <motion.button
+                  key={option.value}
+                  onClick={() => handleToggle(option.value)}
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    width: '100%',
+                    padding: '16px 18px',
+                    borderRadius: '14px',
+                    backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#F0EBE4',
+                    border: isSelected ? `2px solid ${COLORS.ACCENT}` : '1px solid #E8E3DC',
+                    cursor: 'pointer',
+                    fontFamily: "'Lora', Charter, Georgia, serif",
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    color: '#111',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected
+                      ? `0 0 0 2px ${COLORS.ACCENT}, 0 4px 12px rgba(16, 185, 129, 0.25)`
+                      : '0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                >
+                  {/* Checkbox indicator */}
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '6px',
+                    border: isSelected ? `2px solid ${COLORS.ACCENT}` : '2px solid #CCC',
+                    backgroundColor: isSelected ? COLORS.ACCENT : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
+                  }}>
+                    {isSelected && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ flex: 1 }}>{option.label}</span>
+                </motion.button>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Continue button - appears when at least one option selected */}
+      <AnimatePresence>
+        {typingComplete && selected.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}
+          >
+            <motion.button
+              onClick={handleContinue}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                backgroundColor: COLORS.ACCENT,
+                color: '#FFFFFF',
+                padding: '14px 28px',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '500',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontFamily: "'Geist', -apple-system, sans-serif",
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Continue <span>→</span>
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -1717,6 +1949,9 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     message: string
   } | null>(null)
 
+  // Store diagnosis screens from loading step for diagnosis-sequence step
+  const [diagnosisScreens, setDiagnosisScreens] = useState<string[]>([])
+
   // Reset step index when levelId changes (new phase)
   useEffect(() => {
     if (state.progress.currentPhase === levelId) {
@@ -1891,6 +2126,14 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
               onAnswer={handleAnswer}
             />
           )
+        } else if (currentStep.questionType === 'multi-select') {
+          return (
+            <MultiSelectStepContent
+              key={currentStepIndex}
+              step={currentStep}
+              onAnswer={handleAnswer}
+            />
+          )
         } else if (currentStep.questionType === 'contact-info') {
           return (
             <ContactInfoStepContent
@@ -1913,6 +2156,32 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
             />
           )
         }
+
+      case 'loading':
+        return (
+          <LoadingScreenStepContent
+            key={currentStepIndex}
+            step={currentStep}
+            onComplete={(screens: string[]) => {
+              setDiagnosisScreens(screens)
+              goToNextStep()
+            }}
+            sessionId={state.sessionId || undefined}
+          />
+        )
+
+      case 'diagnosis-sequence':
+        // This step type renders the full 8-screen diagnosis flow
+        // It manages its own internal navigation
+        return (
+          <DiagnosisSequenceFlow
+            key={currentStepIndex}
+            screens={diagnosisScreens}
+            calendlyUrl={flow.embeds?.calendlyUrl}
+            onBack={goToPreviousStep}
+            flowId={flowId}
+          />
+        )
 
       case 'thinking':
         return (
@@ -1960,10 +2229,14 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     }
   }
 
+  // Hide header and progress for diagnosis-sequence (it renders its own)
+  const isDiagnosisSequence = currentStep.type === 'diagnosis-sequence'
+
   return (
     <div style={{ backgroundColor: COLORS.BACKGROUND, minHeight: '100vh', position: 'relative', overflowX: 'hidden', overflowY: 'auto' }}>
       {/* Persistent Header - uses absolute positioning when inside a panel */}
-      {!hideHeader && (
+      {/* Hidden for diagnosis-sequence which renders its own header */}
+      {!hideHeader && !isDiagnosisSequence && (
         <GlassHeader
           onBack={goToPreviousStep}
           showBackButton={(currentStepIndex > 0 || !!onBack) && !shouldDimBackButton}
@@ -1973,19 +2246,21 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
       )}
 
       {/* Persistent Progress Indicator - stays in place while content slides */}
-      {/* When hideHeader but has onBack (inside panel), parent has stationary header at top */}
-      <div style={{
-        position: 'absolute',
-        top: (hideHeader && !onBack) ? 24 : 80,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '0 24px',
-      }}>
-        <StepProgress current={currentStepNumber} total={totalSteps} />
-      </div>
+      {/* Hidden for diagnosis-sequence which shows its own 1-8 progress */}
+      {!isDiagnosisSequence && (
+        <div style={{
+          position: 'absolute',
+          top: (hideHeader && !onBack) ? 24 : 80,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '0 24px',
+        }}>
+          <StepProgress current={currentStepNumber} total={totalSteps} />
+        </div>
+      )}
 
       {/* Animated Content Area - slides horizontally */}
       <AnimatePresence mode="wait" custom={direction}>
