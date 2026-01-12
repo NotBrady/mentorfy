@@ -3,16 +3,55 @@ import { getFlow } from '@/data/flows'
 
 export type WebhookEventType = 'lead.contact-captured'
 
+/**
+ * Webhook payload sent when a lead submits contact information.
+ *
+ * Delivered via POST with headers:
+ * - Content-Type: application/json
+ * - User-Agent: Mentorfy-Webhook/1.0
+ *
+ * Delivery includes automatic retries with exponential backoff:
+ * 1min, 5min, 15min, 30min, 60min (max 5 attempts)
+ *
+ * @example
+ * ```json
+ * {
+ *   "event": "lead.contact-captured",
+ *   "timestamp": "2026-01-12T05:16:10.065Z",
+ *   "session": {
+ *     "id": "ea8d268a-753d-47cd-a447-8b443a8a3446",
+ *     "flowId": "blackbox",
+ *     "email": "user@example.com",
+ *     "phone": "555-123-4567",
+ *     "name": "John Doe",
+ *     "answers": {
+ *       "assessment.q1": "option-a",
+ *       "assessment.q2": "option-b"
+ *     },
+ *     "createdAt": "2026-01-12T05:10:00.000Z"
+ *   }
+ * }
+ * ```
+ */
 export interface WebhookPayload {
+  /** Event type identifier */
   event: WebhookEventType
+  /** ISO 8601 timestamp when the webhook was created */
   timestamp: string
   session: {
+    /** Unique session identifier (UUID) */
     id: string
+    /** Flow that captured the lead (e.g., "blackbox", "growthoperator") */
     flowId: string
+    /** Lead's email address, if provided */
     email: string | null
+    /** Lead's phone number, if provided */
     phone: string | null
+    /** Lead's name, if provided */
     name: string | null
+    /** Assessment answers keyed by question identifier */
     answers: Record<string, any>
+    /** ISO 8601 timestamp when the session started */
     createdAt: string
   }
 }
