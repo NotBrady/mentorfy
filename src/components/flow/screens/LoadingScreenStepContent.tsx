@@ -69,17 +69,21 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId }: Loadin
 
           for (const line of lines) {
             // Debug: log first few lines to see format
-            if (fullText.length < 100) {
-              console.log('[LoadingScreen] Raw line:', line.slice(0, 100))
+            if (fullText.length < 200) {
+              console.log('[LoadingScreen] Raw line:', JSON.stringify(line.slice(0, 120)))
             }
-            // UI message stream format: text chunks start with "0:" followed by JSON string
-            if (line.startsWith('0:')) {
+            // AI SDK 6 uses SSE format: data: {"type":"text-delta","delta":"..."}
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6)
+              if (jsonStr === '[DONE]') continue
               try {
-                const textChunk = JSON.parse(line.slice(2))
-                if (typeof textChunk === 'string') {
-                  fullText += textChunk
+                const data = JSON.parse(jsonStr)
+                if (data.type === 'text-delta' && data.delta) {
+                  fullText += data.delta
                 }
-              } catch { /* skip invalid JSON */ }
+              } catch (e) {
+                console.log('[LoadingScreen] JSON parse error:', e, 'for:', jsonStr.slice(0, 50))
+              }
             }
           }
         }

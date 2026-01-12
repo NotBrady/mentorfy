@@ -886,24 +886,16 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
           buffer = lines.pop() || ''
 
           for (const line of lines) {
-            // UI message stream format: text chunks start with "0:", tool results with "9:"
-            if (line.startsWith('0:')) {
+            // AI SDK 6 uses SSE format: data: {"type":"text-delta","delta":"..."}
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6)
+              if (jsonStr === '[DONE]') continue
               try {
-                const textChunk = JSON.parse(line.slice(2))
-                if (typeof textChunk === 'string') {
-                  fullText += textChunk
-                }
-              } catch { /* skip invalid JSON */ }
-            } else if (line.startsWith('9:')) {
-              // Tool result format: 9:[{"toolCallId":"...","result":{...}}]
-              try {
-                const toolResults = JSON.parse(line.slice(2))
-                if (Array.isArray(toolResults)) {
-                  for (const toolResult of toolResults) {
-                    if (toolResult.result?.embedType) {
-                      setEmbedData(toolResult.result)
-                    }
-                  }
+                const data = JSON.parse(jsonStr)
+                if (data.type === 'text-delta' && data.delta) {
+                  fullText += data.delta
+                } else if (data.type === 'tool-result' && data.result?.embedType) {
+                  setEmbedData(data.result)
                 }
               } catch { /* skip invalid JSON */ }
             }
