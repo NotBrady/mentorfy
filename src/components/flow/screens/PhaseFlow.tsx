@@ -874,19 +874,20 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
         if (!reader) return
 
         const decoder = new TextDecoder()
-        let fullText = ''
-        let buffer = ''
+        let rawText = ''
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
+          rawText += decoder.decode(value, { stream: true })
+        }
 
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ''
-
+        // Check if response is SSE format (UI message stream) or plain text
+        let fullText = ''
+        if (rawText.startsWith('data: ')) {
+          // SSE format - parse data lines (used when tools are enabled)
+          const lines = rawText.split('\n')
           for (const line of lines) {
-            // AI SDK 6 uses SSE format: data: {"type":"text-delta","delta":"..."}
             if (line.startsWith('data: ')) {
               const jsonStr = line.slice(6)
               if (jsonStr === '[DONE]') continue
@@ -900,6 +901,9 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
               } catch { /* skip invalid JSON */ }
             }
           }
+        } else {
+          // Plain text stream (no tools)
+          fullText = rawText
         }
 
         setFullResponse(fullText)

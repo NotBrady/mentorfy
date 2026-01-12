@@ -245,9 +245,12 @@ export async function POST(req: Request, context: RouteContext) {
       },
     })
 
-    // Always use UI message stream - the client parser handles it correctly
-    // and it preserves newlines (plain text stream parsing strips them)
-    return result.toUIMessageStreamResponse()
+    // Use text stream for simple text generation (diagnosis-comprehensive)
+    // Use UI message stream only when tools are involved
+    if (tools && Object.keys(tools).length > 0) {
+      return result.toUIMessageStreamResponse()
+    }
+    return result.toTextStreamResponse()
   } catch (err) {
     console.error(`Generate ${type} error:`, err)
     return new Response(JSON.stringify({ error: 'Internal error' }), {
