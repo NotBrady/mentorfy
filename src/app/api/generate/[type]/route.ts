@@ -225,8 +225,6 @@ export async function POST(req: Request, context: RouteContext) {
       prompt: langfusePrompt,
     })
 
-    console.log(`[Generate ${type}] Starting streamText with model:`, agent.model)
-
     const result = streamText({
       model: getModel(agent),
       system: systemPrompt,
@@ -235,12 +233,6 @@ export async function POST(req: Request, context: RouteContext) {
       maxOutputTokens: agent.maxTokens,
       temperature: agent.temperature,
       onFinish: ({ text, usage, finishReason }) => {
-        console.log(`[Generate ${type}] Stream finished`)
-        console.log(`[Generate ${type}] Finish reason:`, finishReason)
-        console.log(`[Generate ${type}] Text length:`, text?.length || 0)
-        console.log(`[Generate ${type}] Text preview:`, text?.slice(0, 200) || 'EMPTY')
-        console.log(`[Generate ${type}] Usage:`, usage)
-
         // Complete Langfuse generation
         generation.end({
           output: text,
@@ -262,9 +254,6 @@ export async function POST(req: Request, context: RouteContext) {
 
         // Flush traces to Langfuse
         flushLangfuse()
-      },
-      onError: (error) => {
-        console.error(`[Generate ${type}] Stream error:`, error)
       },
     })
 

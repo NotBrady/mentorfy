@@ -71,24 +71,10 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
     return waitingLoopMessages[loopIndex]
   }
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[Loading] Component mounted, sessionId:', sessionId)
-  }, [sessionId])
-
   // Fetch diagnosis from API
   useEffect(() => {
-    if (fetchedRef.current) {
-      console.log('[Loading] Already fetched, skipping')
-      return
-    }
-    if (!sessionId) {
-      console.log('[Loading] No sessionId, skipping fetch')
-      return
-    }
-
+    if (fetchedRef.current || !sessionId) return
     fetchedRef.current = true
-    console.log('[Loading] Starting diagnosis fetch for session:', sessionId)
 
     async function fetchDiagnosis() {
       try {
@@ -98,10 +84,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
           body: JSON.stringify({ sessionId, promptKey: 'diagnosis-comprehensive' })
         })
 
-        console.log('[Loading] Diagnosis response status:', res.status)
-
         if (!res.ok) {
-          console.error('[Loading] Diagnosis fetch failed:', res.status)
           if (res.status === 400) {
             setError('Your session data is incomplete. Please restart the assessment.')
           } else if (res.status === 429) {
@@ -113,10 +96,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
         }
 
         const reader = res.body?.getReader()
-        if (!reader) {
-          console.error('[Loading] No response body reader')
-          return
-        }
+        if (!reader) return
 
         const decoder = new TextDecoder()
         let fullText = ''
@@ -149,8 +129,6 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
           }
         }
 
-        console.log('[Loading] Full response length:', fullText.length)
-
         const screens: string[] = []
         const regex = /<screen_(\d+)>([\s\S]*?)<\/screen_\d+>/g
         let match
@@ -158,14 +136,10 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
           screens[parseInt(match[1]) - 1] = match[2].trim()
         }
 
-        console.log('[Loading] Parsed screens:', screens.length)
-
         if (screens.length > 0) {
           setDiagnosisScreens(screens)
           setDiagnosisReady(true)
         } else {
-          console.error('[Loading] No screens parsed from response')
-          console.log('[Loading] Response preview:', fullText.slice(0, 500))
           // Check if the response indicates an error
           if (fullText.length === 0 || fullText.includes('error') || fullText.includes('Overloaded')) {
             setError('Our AI is currently experiencing high demand. Please try again in a moment.')
@@ -173,8 +147,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
             setError('Failed to generate your diagnosis. Please try again.')
           }
         }
-      } catch (err) {
-        console.error('[Loading] Diagnosis fetch error:', err)
+      } catch {
         setError('Something went wrong. Please try again.')
       }
     }
@@ -196,8 +169,6 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
       }, typeSpeed)
       return () => clearTimeout(timeout)
     } else {
-      // Finished typing this message
-      console.log('[Loading] Finished typing message:', currentMessage.slice(0, 30) + '...')
       setPhase('paused')
     }
   }, [phase, displayedText, currentMessageIndex, showingReadyMessage])
@@ -208,7 +179,6 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
 
     // If showing ready message and done typing, trigger transition
     if (showingReadyMessage) {
-      console.log('[Loading] Ready message complete, starting transition')
       const fadeTimer = setTimeout(() => {
         setIsTransitioning(true)
       }, 1500)
@@ -217,18 +187,15 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
 
     // Wait then move to next message (or show ready message if API done)
     const pauseDuration = 2500 + Math.random() * 1000
-    console.log('[Loading] Pausing for', Math.round(pauseDuration), 'ms')
 
     transitionTimeoutRef.current = setTimeout(() => {
       // Check if diagnosis is ready - if so, show ready message
       if (diagnosisReady && diagnosisScreens.length > 0) {
-        console.log('[Loading] Diagnosis ready, showing ready message')
         setShowingReadyMessage(true)
         setDisplayedText('')
         setPhase('typing')
       } else {
         // Move to next waiting message (loops)
-        console.log('[Loading] Moving to next message')
         setCurrentMessageIndex(prev => prev + 1)
         setDisplayedText('')
         setPhase('typing')
@@ -245,9 +212,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
   // Call onComplete after fade out
   useEffect(() => {
     if (!isTransitioning || hasCalledComplete.current) return
-
     hasCalledComplete.current = true
-    console.log('[Loading] Calling onComplete with', diagnosisScreens.length, 'screens')
 
     const completeTimer = setTimeout(() => {
       onComplete(diagnosisScreens)
