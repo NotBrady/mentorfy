@@ -225,14 +225,41 @@ export async function POST(req: Request, context: RouteContext) {
       prompt: langfusePrompt,
     })
 
+    // Build messages with cache control for Anthropic models
+    // The system prompt is ~8KB and benefits significantly from caching
+    const isAnthropic = agent.provider === 'anthropic'
+    const streamMessages = isAnthropic
+      ? [
+          {
+            role: 'system' as const,
+            content: systemPrompt,
+            providerOptions: {
+              anthropic: { cacheControl: { type: 'ephemeral' } },
+            },
+          },
+          { role: 'user' as const, content: userMessage },
+        ]
+      : [{ role: 'user' as const, content: userMessage }]
+
     const result = streamText({
       model: getModel(agent),
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
+      // Only use system param for non-Anthropic (Google) models
+      system: isAnthropic ? undefined : systemPrompt,
+      messages: streamMessages,
       tools: Object.keys(tools || {}).length > 0 ? tools : undefined,
       maxOutputTokens: agent.maxTokens,
       temperature: agent.temperature,
-      onFinish: ({ text, usage, finishReason }) => {
+      onFinish: ({ text, usage, finishReason, providerMetadata }) => {
+        // Log cache stats if available (Anthropic only)
+        const cacheStats = providerMetadata?.anthropic
+        if (cacheStats) {
+          trace.update({
+            metadata: {
+              cacheCreationInputTokens: cacheStats.cacheCreationInputTokens,
+              cacheReadInputTokens: cacheStats.cacheReadInputTokens,
+            },
+          })
+        }
         // Complete Langfuse generation
         generation.end({
           output: text,
