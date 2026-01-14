@@ -251,12 +251,14 @@ export async function POST(req: Request, context: RouteContext) {
       temperature: agent.temperature,
       onFinish: ({ text, usage, finishReason, providerMetadata }) => {
         // Log cache stats if available (Anthropic only)
-        const cacheStats = providerMetadata?.anthropic
-        if (cacheStats) {
+        // Note: Vercel AI SDK exposes cacheCreationInputTokens at top level but NOT cacheReadInputTokens.
+        // We pull both from the raw usage object for consistency (snake_case from Anthropic API).
+        const anthropicUsage = providerMetadata?.anthropic?.usage
+        if (anthropicUsage) {
           trace.update({
             metadata: {
-              cacheCreationInputTokens: cacheStats.cacheCreationInputTokens,
-              cacheReadInputTokens: cacheStats.cacheReadInputTokens,
+              cacheCreationInputTokens: anthropicUsage.cache_creation_input_tokens,
+              cacheReadInputTokens: anthropicUsage.cache_read_input_tokens,
             },
           })
         }
