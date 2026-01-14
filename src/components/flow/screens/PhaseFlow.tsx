@@ -2064,6 +2064,14 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
         headline: step.exitCondition.headline,
         message: step.exitCondition.message,
       })
+      // Track disqualified event
+      analytics.trackDisqualified({
+        reason: 'no_prior_attempt',
+        triggerStep: step.stepKey,
+        triggerValue: value,
+        headline: step.exitCondition.headline,
+        timeInFlowMs: 0, // TODO: Track flow start time in session for accurate timing
+      })
       return // Don't proceed to next step
     }
 
@@ -2193,6 +2201,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
             calendlyUrl={flow.embeds?.calendlyUrl}
             onBack={goToPreviousStep}
             flowId={flowId}
+            sessionId={state.sessionId || undefined}
           />
         )
 
