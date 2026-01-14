@@ -253,7 +253,9 @@ export async function POST(req: Request, context: RouteContext) {
         // Log cache stats if available (Anthropic only)
         // Note: Vercel AI SDK exposes cacheCreationInputTokens at top level but NOT cacheReadInputTokens.
         // We pull both from the raw usage object for consistency (snake_case from Anthropic API).
-        const anthropicUsage = providerMetadata?.anthropic?.usage
+        const anthropicUsage = providerMetadata?.anthropic?.usage as
+          | { cache_creation_input_tokens?: number; cache_read_input_tokens?: number }
+          | undefined
         if (anthropicUsage) {
           trace.update({
             metadata: {
