@@ -30,6 +30,8 @@ function getPersonalizeAgentId(promptKey: string): string | undefined {
     'q3-personalize': 'growthoperator-q3-personalize',
     'q4-personalize': 'growthoperator-q4-personalize',
     'q5-personalize': 'growthoperator-q5-personalize',
+    'q8-personalize': 'growthoperator-q8-personalize',
+    'q14-personalize': 'growthoperator-q14-personalize',
   }
   return agents[promptKey]
 }

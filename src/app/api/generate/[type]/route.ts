@@ -33,6 +33,11 @@ function getAgentId(flowId: string, type: string, promptKey?: string): string | 
   // Growth Operator v2/v3/v4 uses promptKey-based routing
   if (flowId === 'growthoperator' && type === 'diagnosis' && promptKey) {
     const promptKeyToAgent: Record<string, string> = {
+      // v4 AI Moments (Gemini 2.5 Flash Lite)
+      'ai-moment-1': 'growthoperator-ai-moment-1',
+      'ai-moment-2': 'growthoperator-ai-moment-2',
+      'ai-moment-3': 'growthoperator-ai-moment-3',
+      'ai-moment-4': 'growthoperator-ai-moment-4',
       // v3 comprehensive 8-screen diagnosis (Opus 4.5)
       'diagnosis-comprehensive': 'growthoperator-diagnosis-comprehensive',
       // v2 multi-step diagnosis

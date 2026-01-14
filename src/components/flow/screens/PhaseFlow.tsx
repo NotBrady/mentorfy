@@ -2022,16 +2022,29 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     )
   }
 
-  // Calculate progress excluding loading and diagnosis-sequence steps
-  // These are "hidden" steps that don't count toward visible progress
-  const hiddenStepTypes = ['loading', 'diagnosis-sequence']
-  const visibleSteps = level.steps.filter(step => !hiddenStepTypes.includes(step.type))
-  const totalSteps = visibleSteps.length
+  // Calculate section-based progress
+  // Steps are grouped by sectionIndex, progress shows within current section only
+  const currentSectionIndex = currentStep.sectionIndex ?? -1
+  const currentSectionLabel = currentStep.sectionLabel
 
-  // Count how many visible steps we've completed (steps before current that are visible)
+  // Get all steps in the current section (excluding AI moments which end sections)
+  const sectionSteps = level.steps.filter(step =>
+    step.sectionIndex === currentSectionIndex &&
+    step.type !== 'ai-moment' &&
+    step.type !== 'loading' &&
+    step.type !== 'diagnosis-sequence'
+  )
+  const totalSteps = sectionSteps.length
+
+  // Count completed steps within current section
   const currentStepNumber = level.steps
     .slice(0, currentStepIndex)
-    .filter(step => !hiddenStepTypes.includes(step.type))
+    .filter(step =>
+      step.sectionIndex === currentSectionIndex &&
+      step.type !== 'ai-moment' &&
+      step.type !== 'loading' &&
+      step.type !== 'diagnosis-sequence'
+    )
     .length
 
   // Determine if back button should be hidden
@@ -2252,10 +2265,10 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
     }
   }
 
-  // Hide header and progress for diagnosis-sequence and loading screens
+  // Hide header and progress for diagnosis-sequence, loading screens, and steps with hideProgressBar
   const isDiagnosisSequence = currentStep.type === 'diagnosis-sequence'
   const isLoadingScreen = currentStep.type === 'loading'
-  const hideHeaderAndProgress = isDiagnosisSequence || isLoadingScreen
+  const hideHeaderAndProgress = isDiagnosisSequence || isLoadingScreen || currentStep.hideProgressBar
 
   return (
     <div style={{ backgroundColor: COLORS.BACKGROUND, minHeight: '100vh', position: 'relative', overflowX: 'hidden', overflowY: 'auto' }}>
@@ -2283,7 +2296,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
           justifyContent: 'center',
           padding: '0 24px',
         }}>
-          <StepProgress current={currentStepNumber} total={totalSteps} />
+          <StepProgress current={currentStepNumber} total={totalSteps} label={currentSectionLabel} />
         </div>
       )}
 

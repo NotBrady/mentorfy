@@ -52,7 +52,7 @@ export interface StepConfig {
   stepKey: string
   type: 'question' | 'ai-moment' | 'sales-page' | 'video' | 'thinking' | 'loading' | 'diagnosis-sequence'
   question?: string
-  questionType?: 'multiple-choice' | 'multi-select' | 'long-answer' | 'contact-info'
+  questionType?: 'multiple-choice' | 'multi-select' | 'long-answer' | 'open-ended' | 'contact-info'
   // Multi-select specific: instruction text shown below question
   instruction?: string
   options?: { label: string; value: string }[]
@@ -84,6 +84,11 @@ export interface StepConfig {
     ready: string
   }
   minDuration?: number // Minimum display time in ms
+  // Section-based progress bar
+  sectionLabel?: string // Label shown on progress bar (e.g., "Your Situation")
+  sectionIndex?: number // Which section this step belongs to (0-indexed)
+  hideProgressBar?: boolean // Hide progress bar for this step (e.g., Q14 sacred moment)
+  endsSection?: boolean // This step ends a section (AI moments)
 }
 
 export interface ContactField {

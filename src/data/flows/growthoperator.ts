@@ -29,32 +29,33 @@ export const growthoperatorFlow: FlowDefinition = {
   webhookUrl: process.env.GROWTHOPERATOR_WEBHOOK_URL,
   webhookFormat: 'slack',
 
-  // Maps session context paths to semantic AI-friendly paths
-  // Format: 'outputPath (what AI sees)': 'inputPath (where to read from context)'
+  // Maps session context paths to semantic AI-friendly paths for diagnosis
+  // Format: { outputPath: inputPath } - AI receives data at outputPath
   contextMapping: {
-    // Q1-Q5: Business history
-    'business.modelTried': 'assessment.modelTried',
-    'business.modelsCount': 'assessment.modelsCount',
-    'motivation.original': 'assessment.originalMotivation',
-    'progress.bestResult': 'assessment.bestResult',
-    'progress.whatHappened': 'assessment.whatHappened',
-    // Q6-Q8: Investment
-    'journey.duration': 'assessment.duration',
-    'investment.money': 'assessment.moneyInvested',
-    'investment.cost': 'assessment.deeperCost',
-    // Q9-Q11: Education & belief
-    'education.source': 'assessment.educationSource',
-    'education.teacherMoney': 'assessment.teacherMoney',
-    'belief.whyFailed': 'assessment.beliefWhyFailed',
-    // Q12-Q14: Emotional state
-    'emotion.current': 'assessment.emotionalState',
-    'emotion.shame': 'assessment.shame',
-    'resilience.whyGoing': 'assessment.whyKeepGoing',
-    // Q15-Q17: Vision & urgency
-    'vision.whatChanges': 'assessment.whatWouldChange',
-    'urgency.level': 'assessment.urgency',
-    'fear.biggest': 'assessment.biggestFear',
-    // Contact info
+    // Section 1: The Dream + Gap
+    'assessment.whyHere': 'assessment.whyHere',
+    'assessment.desiredIncome': 'assessment.desiredIncome',
+    'assessment.currentIncome': 'assessment.currentIncome',
+    'assessment.modelsTried': 'assessment.modelsTried',
+    'assessment.modelsCount': 'assessment.modelsCount',
+    // Section 2: The Weight
+    'assessment.duration': 'assessment.duration',
+    'assessment.totalInvestment': 'assessment.totalInvestment',
+    'assessment.availableCapital': 'assessment.availableCapital',
+    'assessment.deeperCost': 'assessment.deeperCost',
+    // Section 3: The Pattern + Constellation
+    'assessment.positionInEquation': 'assessment.positionInEquation',
+    'assessment.teacherMoney': 'assessment.teacherMoney',
+    'assessment.aiRelationship': 'assessment.aiRelationship',
+    'assessment.thoughtConstellation': 'assessment.thoughtConstellation',
+    // Section 4: The Confession
+    'assessment.confession': 'assessment.confession',
+    // Section 5: Stakes + Fear
+    'assessment.whyKeepGoing': 'assessment.whyKeepGoing',
+    'assessment.whatWouldChange': 'assessment.whatWouldChange',
+    'assessment.urgency': 'assessment.urgency',
+    'assessment.biggestFear': 'assessment.biggestFear',
+    // Contact
     'user.name': 'user.name',
     'user.email': 'user.email',
     'user.phone': 'user.phone',
@@ -65,304 +66,413 @@ export const growthoperatorFlow: FlowDefinition = {
       id: 1,
       name: 'Assessment',
       steps: [
-        // Q1: What business model have you tried?
+        // ============================================================
+        // SECTION 1: THE DREAM + GAP
+        // Progress Bar Label: "Your Situation"
+        // ============================================================
+
+        // Q1: Why are you here?
         {
-          stepKey: 'q1-models-tried',
+          stepKey: 'q1-why-here',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What business model have you tried?",
-          instruction: "Select the model you've seriously attempted.",
+          question: "Why are you here?",
           options: [
-            { value: 'ecommerce', label: 'Ecommerce (dropshipping, Amazon FBA, print on demand)' },
-            { value: 'agency', label: 'Agency or services (SMMA, lead gen, freelancing, AI automation)' },
-            { value: 'sales', label: 'Sales (high ticket closing, appointment setting, remote sales)' },
-            { value: 'content', label: 'Content creation (YouTube, TikTok, podcast, newsletter)' },
-            { value: 'coaching', label: 'Coaching or courses (selling your own knowledge or expertise)' },
-            { value: 'affiliate', label: 'Affiliate marketing (promoting other people\'s products)' },
-            { value: 'software', label: 'Software or apps (SaaS, no-code tools, browser extensions)' },
-            { value: 'investing', label: 'Trading or investing (crypto, forex, stocks, real estate)' },
-            { value: 'not-tried-yet', label: "I haven't seriously tried anything yet" },
+            { value: 'figuring-out', label: "I'm still trying to figure this online business thing out" },
+            { value: 'tried-didnt-work', label: "I've tried things that didn't work and I'm looking for what will" },
+            { value: 'stuck', label: "I'm stuck and I need a new direction" },
+            { value: 'something-told-me', label: 'Something told me to click... so here I am' },
           ],
-          stateKey: 'assessment.modelTried',
-          exitCondition: {
-            values: ['not-tried-yet'],
-            headline: "This experience isn't for you yet.",
-            message: "This assessment is designed for people who've already taken real swings at building something online. The insights won't land the same way if you haven't been through it yourself.\n\nWhen you've tried something and felt it not work the way you expected, come back. We'll be here.",
-          },
+          stateKey: 'assessment.whyHere',
+          sectionLabel: 'Your Situation',
+          sectionIndex: 0,
         },
 
-        // Q2: How many models committed to?
+        // Q2: Desired income
         {
-          stepKey: 'q2-models-count',
+          stepKey: 'q2-desired-income',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "How many different business models have you actually committed to?",
+          question: "If this actually worked... what would you want to be making?",
           options: [
-            { value: '1', label: 'Just 1 so far' },
-            { value: '2-3', label: '2 to 3 different things' },
-            { value: '4-5', label: '4 to 5 different things' },
-            { value: '5+', label: "More than 5... I've tried a lot" },
+            { value: '5k', label: '$5,000/month — enough to breathe' },
+            { value: '10k', label: '$10,000/month — real freedom starts here' },
+            { value: '25k', label: '$25,000/month — life changing money' },
+            { value: '50k', label: '$50,000/month — a completely different life' },
+            { value: '100k+', label: '$100,000+/month — the big dream' },
+          ],
+          stateKey: 'assessment.desiredIncome',
+          sectionLabel: 'Your Situation',
+          sectionIndex: 0,
+        },
+
+        // Q3: Current income
+        {
+          stepKey: 'q3-current-income',
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "What are you actually making right now?",
+          options: [
+            { value: '<1k', label: 'Less than $1,000/month' },
+            { value: '1k-3k', label: '$1,000 - $3,000/month' },
+            { value: '3k-5k', label: '$3,000 - $5,000/month' },
+            { value: '5k-10k', label: '$5,000 - $10,000/month' },
+            { value: '10k+', label: 'Over $10,000/month' },
+          ],
+          stateKey: 'assessment.currentIncome',
+          sectionLabel: 'Your Situation',
+          sectionIndex: 0,
+        },
+
+        // Q4: What have you tried?
+        {
+          stepKey: 'q4-models-tried',
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "What have you actually tried?",
+          options: [
+            { value: 'ecommerce', label: 'Ecommerce — dropshipping, Amazon, print on demand' },
+            { value: 'agency', label: 'Agency or services — SMMA, freelancing, lead gen, AI automation' },
+            { value: 'sales', label: 'Sales — closing, setting, remote sales roles' },
+            { value: 'content', label: 'Content — YouTube, TikTok, podcasts, newsletters' },
+            { value: 'coaching', label: 'Coaching or courses — selling what you know' },
+            { value: 'affiliate', label: 'Affiliate — promoting other people\'s stuff' },
+            { value: 'software', label: 'Software — SaaS, apps, no-code tools' },
+            { value: 'trading', label: 'Trading or investing — crypto, forex, stocks' },
+            { value: 'nothing-serious', label: "I haven't really tried anything seriously yet" },
+          ],
+          stateKey: 'assessment.modelsTried',
+          sectionLabel: 'Your Situation',
+          sectionIndex: 0,
+        },
+
+        // Q5: How many models?
+        {
+          stepKey: 'q5-models-count',
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "How many different things have you actually gone all-in on?",
+          options: [
+            { value: '1', label: 'Just one thing so far' },
+            { value: '2-3', label: '2-3 different models' },
+            { value: '4-5', label: '4-5 different models' },
+            { value: '5+', label: "More than 5... I've been searching for a while" },
           ],
           stateKey: 'assessment.modelsCount',
+          sectionLabel: 'Your Situation',
+          sectionIndex: 0,
         },
 
-        // Q3: Original motivation
+        // AI MOMENT 1: Recognition + Forward Pull
         {
-          stepKey: 'q3-motivation',
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: "Why did you get into online business in the first place?",
-          options: [
-            { value: 'freedom', label: 'I wanted freedom and flexibility' },
-            { value: 'money', label: 'I wanted to make more money than a job would ever pay' },
-            { value: 'ownership', label: 'I wanted to build something that was actually mine' },
-            { value: 'escape', label: 'I wanted to escape the 9-5 completely' },
-            { value: 'prove', label: 'I wanted to prove to myself I could do it' },
-            { value: 'others', label: 'I saw other people living that life and wanted it too' },
-          ],
-          stateKey: 'assessment.originalMotivation',
+          stepKey: 'ai-moment-1',
+          type: 'ai-moment',
+          promptKey: 'ai-moment-1',
+          noBackButton: true,
+          endsSection: true,
+          sectionIndex: 0,
         },
 
-        // Q4: Best result
-        {
-          stepKey: 'q4-best-result',
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: "How far did you get with your BEST attempt?",
-          options: [
-            { value: 'never-started', label: 'Never really got it off the ground' },
-            { value: 'started-no-money', label: 'Got started but never made real money' },
-            { value: 'some-money', label: "Made some money but couldn't keep it going" },
-            { value: '1k-5k', label: 'Made $1K to $5K months but plateaued or stopped' },
-            { value: '5k-10k', label: 'Made $5K to $10K months but burned out' },
-            { value: '10k+', label: 'Made $10K+ months but something still went wrong' },
-          ],
-          stateKey: 'assessment.bestResult',
-        },
-
-        // Q5: What happened
-        {
-          stepKey: 'q5-what-happened',
-          type: 'question',
-          questionType: 'multiple-choice',
-          question: "What actually happened?",
-          options: [
-            { value: 'no-traction', label: "I couldn't get traction no matter what I tried" },
-            { value: 'couldnt-scale', label: "I got some traction but couldn't figure out how to scale" },
-            { value: 'too-many-hours', label: 'I was making money but working way too many hours' },
-            { value: 'saturated', label: 'The market got too competitive or saturated' },
-            { value: 'ran-out-money', label: 'I ran out of money before it could take off' },
-            { value: 'life', label: 'Life circumstances forced me to stop' },
-            { value: 'lost-motivation', label: "I just lost motivation and couldn't keep pushing" },
-            { value: 'not-sure', label: "I'm not actually sure what went wrong" },
-          ],
-          stateKey: 'assessment.whatHappened',
-        },
+        // ============================================================
+        // SECTION 2: THE WEIGHT
+        // Progress Bar Label: "Your Journey"
+        // ============================================================
 
         // Q6: Duration
         {
           stepKey: 'q6-duration',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "How long have you been trying to make online business work?",
+          question: "How long have you been trying to make this work?",
           options: [
             { value: '<6mo', label: 'Less than 6 months' },
-            { value: '6mo-1yr', label: '6 months to 1 year' },
-            { value: '1-2yr', label: '1 to 2 years' },
-            { value: '2-3yr', label: '2 to 3 years' },
-            { value: '3-5yr', label: '3 to 5 years' },
+            { value: '6mo-1yr', label: '6 months to a year' },
+            { value: '1-2yr', label: '1-2 years' },
+            { value: '2-3yr', label: '2-3 years' },
+            { value: '3-5yr', label: '3-5 years' },
             { value: '5yr+', label: 'More than 5 years' },
           ],
           stateKey: 'assessment.duration',
+          sectionLabel: 'Your Journey',
+          sectionIndex: 1,
         },
 
-        // Q7: Money invested
+        // Q7: Total investment
         {
-          stepKey: 'q7-money-invested',
+          stepKey: 'q7-investment',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "How much money have you invested in courses, coaching, and tools?",
+          question: "When you add it all up — courses, coaching, tools, ads, everything — how much have you put on the line?",
           options: [
             { value: '<500', label: 'Less than $500' },
-            { value: '500-2k', label: '$500 to $2,000' },
-            { value: '2k-5k', label: '$2,000 to $5,000' },
-            { value: '5k-10k', label: '$5,000 to $10,000' },
-            { value: '10k-25k', label: '$10,000 to $25,000' },
+            { value: '500-2k', label: '$500 - $2,000' },
+            { value: '2k-5k', label: '$2,000 - $5,000' },
+            { value: '5k-10k', label: '$5,000 - $10,000' },
+            { value: '10k-25k', label: '$10,000 - $25,000' },
             { value: '25k+', label: 'More than $25,000' },
           ],
-          stateKey: 'assessment.moneyInvested',
+          stateKey: 'assessment.totalInvestment',
+          sectionLabel: 'Your Journey',
+          sectionIndex: 1,
         },
 
-        // Q8: Deeper cost
+        // Q8: Available capital (PERSONALIZED)
         {
-          stepKey: 'q8-deeper-cost',
+          stepKey: 'q8-available-capital',
+          type: 'question',
+          questionType: 'multiple-choice',
+          question: "How much do you actually have available right now to put toward finally making this work?",
+          baseQuestion: "How much do you actually have available right now to put toward finally making this work?",
+          personalizePromptKey: 'q8-personalize',
+          options: [
+            { value: '<1k', label: 'Less than $1,000' },
+            { value: '1k-3k', label: '$1,000 - $3,000' },
+            { value: '3k-5k', label: '$3,000 - $5,000' },
+            { value: '5k-10k', label: '$5,000 - $10,000' },
+            { value: '10k+', label: 'More than $10,000' },
+          ],
+          stateKey: 'assessment.availableCapital',
+          sectionLabel: 'Your Journey',
+          sectionIndex: 1,
+        },
+
+        // Q9: Deeper cost
+        {
+          stepKey: 'q9-deeper-cost',
           type: 'question',
           questionType: 'multiple-choice',
           question: "What has this cost you beyond money?",
           options: [
-            { value: 'time', label: "Time I'll never get back" },
+            { value: 'time', label: "Time I'm never getting back" },
             { value: 'confidence', label: 'Confidence in myself' },
-            { value: 'relationships', label: 'Relationships or strain with people close to me' },
-            { value: 'opportunities', label: 'Other opportunities I passed up' },
+            { value: 'relationships', label: 'Relationships — strain with people who matter' },
+            { value: 'opportunities', label: 'Other opportunities I let pass' },
             { value: 'peace', label: 'My peace of mind' },
             { value: 'all', label: 'All of the above' },
           ],
           stateKey: 'assessment.deeperCost',
+          sectionLabel: 'Your Journey',
+          sectionIndex: 1,
         },
 
-        // Q9: Education source
+        // AI MOMENT 2: Validation + Pattern Tease
         {
-          stepKey: 'q9-education',
+          stepKey: 'ai-moment-2',
+          type: 'ai-moment',
+          promptKey: 'ai-moment-2',
+          noBackButton: true,
+          endsSection: true,
+          sectionIndex: 1,
+        },
+
+        // ============================================================
+        // SECTION 3: THE PATTERN + CONSTELLATION
+        // Progress Bar Label: "Going Deeper"
+        // ============================================================
+
+        // Q10: Position in equation
+        {
+          stepKey: 'q10-position',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "Where did you learn most of what you know about online business?",
+          question: "In the things you've tried... where were YOU in the equation?",
           options: [
-            { value: 'free', label: 'Free content (YouTube, podcasts, social media)' },
-            { value: 'course', label: 'A course I bought' },
-            { value: 'coaching', label: 'A coaching program or mastermind I joined' },
-            { value: 'mix', label: 'A mix of courses and programs' },
-            { value: 'self', label: 'I mostly figured it out myself' },
+            { value: 'expert', label: 'I was trying to be the expert — the one with the knowledge and credibility' },
+            { value: 'marketer', label: 'I was trying to be the marketer — getting attention, building an audience' },
+            { value: 'everything', label: 'I was doing everything myself — expert, marketer, operator, all of it' },
+            { value: 'someone-elses', label: "I was working in someone else's system — their business, their rules" },
+            { value: 'never-thought', label: 'I never really thought about where I was positioned' },
           ],
-          stateKey: 'assessment.educationSource',
+          stateKey: 'assessment.positionInEquation',
+          sectionLabel: 'Going Deeper',
+          sectionIndex: 2,
         },
 
-        // Q10: How teachers made money
+        // Q11: Teacher money
         {
-          stepKey: 'q10-teacher-money',
+          stepKey: 'q11-teacher-money',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "The people who taught you... how did THEY make most of their money?",
+          question: "The people who taught you this stuff... how did THEY make most of their money?",
           options: [
-            { value: 'teaching', label: 'Teaching the thing... not doing it' },
-            { value: 'doing', label: 'Actually doing the thing successfully' },
-            { value: 'both', label: 'Both teaching and doing' },
+            { value: 'teaching', label: 'Teaching it — courses, coaching, content about the thing' },
+            { value: 'doing', label: 'Actually doing it — making money from the business model itself' },
+            { value: 'both', label: 'Both — doing it AND teaching it' },
             { value: 'never-thought', label: 'I never really thought about it' },
-            { value: 'self-taught', label: "I taught myself, so this doesn't apply" },
+            { value: 'self-taught', label: 'I mostly taught myself' },
           ],
           stateKey: 'assessment.teacherMoney',
+          sectionLabel: 'Going Deeper',
+          sectionIndex: 2,
         },
 
-        // Q11: Belief about failure
+        // Q12: AI relationship
         {
-          stepKey: 'q11-belief',
+          stepKey: 'q12-ai-relationship',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What do YOU think was the real reason it hasn't worked?",
+          question: "How has AI changed how you think about all of this?",
           options: [
-            { value: 'execution', label: "I didn't execute well enough" },
-            { value: 'time', label: "I didn't have enough time to fully commit" },
-            { value: 'money', label: "I didn't have enough money to do it right" },
-            { value: 'saturated', label: 'The model I chose was too competitive' },
-            { value: 'wrong-model', label: 'I picked the wrong business model for me' },
-            { value: 'bad-info', label: "The information I got wasn't good enough" },
-            { value: 'dont-know', label: "I honestly don't know" },
+            { value: 'uncertain', label: 'Everything feels more uncertain now' },
+            { value: 'opportunity', label: "I see opportunity but I don't know how to capture it" },
+            { value: 'left-behind', label: "I'm worried about being left behind" },
+            { value: 'hype', label: "I think it's mostly hype — things haven't really changed" },
+            { value: 'where-i-fit', label: "I'm trying to figure out where I fit in the new landscape" },
           ],
-          stateKey: 'assessment.beliefWhyFailed',
+          stateKey: 'assessment.aiRelationship',
+          sectionLabel: 'Going Deeper',
+          sectionIndex: 2,
         },
 
-        // Q12: Current emotional state
+        // Q13: Thought constellation (MULTI-SELECT)
         {
-          stepKey: 'q12-emotional-state',
+          stepKey: 'q13-constellation',
           type: 'question',
-          questionType: 'multiple-choice',
-          question: 'How do you feel about "online business opportunities" at this point?',
+          questionType: 'multi-select',
+          question: "Which of these thoughts have actually crossed your mind?",
+          instruction: "Select all that apply",
           options: [
-            { value: 'skeptical', label: "Extremely skeptical... I've seen too much bullshit" },
-            { value: 'frustrated', label: "Frustrated... nothing has actually worked" },
-            { value: 'cautious', label: 'Cautiously open... maybe something real exists' },
-            { value: 'exhausted', label: 'Exhausted but still not ready to quit' },
-            { value: 'logical', label: 'Just want something that actually makes sense' },
+            { value: 'not-smart-enough', label: '"Maybe I\'m just not smart enough for this"' },
+            { value: 'wasted-time', label: '"I\'ve wasted so much time"' },
+            { value: 'everyone-else', label: '"Everyone else seems to figure it out except me"' },
+            { value: 'same-place-5yr', label: '"What if I\'m still in the same place in 5 years?"' },
+            { value: 'normal-job', label: '"I should have just gotten a normal job"' },
+            { value: 'cant-give-up', label: '"I can\'t give up now — I\'ve already put too much in"' },
+            { value: 'something-missing', label: '"There has to be something I\'m missing"' },
+            { value: 'game-rigged', label: '"The game feels rigged"' },
           ],
-          stateKey: 'assessment.emotionalState',
+          stateKey: 'assessment.thoughtConstellation',
+          sectionLabel: 'Going Deeper',
+          sectionIndex: 2,
         },
 
-        // Q13: Shame
+        // AI MOMENT 3: Insight Delivery + Pre-Frame
         {
-          stepKey: 'q13-shame',
+          stepKey: 'ai-moment-3',
+          type: 'ai-moment',
+          promptKey: 'ai-moment-3',
+          noBackButton: true,
+          endsSection: true,
+          sectionIndex: 2,
+        },
+
+        // ============================================================
+        // SECTION 4: THE CONFESSION
+        // No progress bar — single weighted moment
+        // ============================================================
+
+        // Q14: The confession (PERSONALIZED OPEN-ENDED)
+        {
+          stepKey: 'q14-confession',
           type: 'question',
-          questionType: 'multiple-choice',
-          question: "Be honest... has this journey made you feel embarrassed or ashamed?",
-          options: [
-            { value: 'money-shame', label: "Yes... I've spent money and time with nothing to show for it" },
-            { value: 'social-shame', label: 'Yes... I\'ve told people I\'m "working on something" for too long' },
-            { value: 'self-shame', label: "Yes... I feel like I should have figured this out by now" },
-            { value: 'little', label: "A little... but I try not to think about it" },
-            { value: 'no', label: "Not really... I see it all as part of the process" },
-          ],
-          stateKey: 'assessment.shame',
+          questionType: 'open-ended',
+          question: "In one sentence: What's the most frustrating or embarrassing truth about this whole journey — the thing you don't really talk about?",
+          baseQuestion: "In one sentence: What's the most frustrating or embarrassing truth about this whole journey — the thing you don't really talk about?",
+          personalizePromptKey: 'q14-personalize',
+          placeholder: "Type your answer here...",
+          stateKey: 'assessment.confession',
+          hideProgressBar: true,
+          noBackButton: true,
+          sectionIndex: 3,
         },
 
-        // Q14: What kept you going
+        // AI MOMENT 4: Acknowledgment + Bridge
         {
-          stepKey: 'q14-keep-going',
+          stepKey: 'ai-moment-4',
+          type: 'ai-moment',
+          promptKey: 'ai-moment-4',
+          noBackButton: true,
+          endsSection: true,
+          sectionIndex: 3,
+        },
+
+        // ============================================================
+        // SECTION 5: THE STAKES + FEAR
+        // Progress Bar Label: "What's At Stake"
+        // ============================================================
+
+        // Q15: What's kept you going
+        {
+          stepKey: 'q15-why-going',
           type: 'question',
           questionType: 'multiple-choice',
           question: "Despite everything... what's kept you going?",
           options: [
-            { value: 'seen-others', label: "I've seen others succeed... I know it's possible" },
-            { value: 'refuse-normal', label: 'I refuse to go back to a "normal" path' },
-            { value: 'no-backup', label: "I don't have a backup plan... I need this to work" },
-            { value: 'believe', label: "I genuinely believe I'll figure it out eventually" },
-            { value: 'cant-let-go', label: "I can't explain it... I just can't let it go" },
+            { value: 'seen-others', label: "I've seen other people make it work — I know it's possible" },
+            { value: 'refuse-normal', label: 'I refuse to go back to "normal" — that\'s not an option for me' },
+            { value: 'no-backup', label: "I don't have a backup plan — I need this to work" },
+            { value: 'believe', label: "I still believe I'll figure it out eventually" },
+            { value: 'cant-let-go', label: "I can't explain it — something in me just won't let go" },
           ],
           stateKey: 'assessment.whyKeepGoing',
+          sectionLabel: "What's At Stake",
+          sectionIndex: 4,
         },
 
-        // Q15: What would change
+        // Q16: What would change
         {
-          stepKey: 'q15-vision',
+          stepKey: 'q16-what-changes',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "If this actually worked... what would change in your life first?",
+          question: "If this actually worked... what would change first?",
           options: [
             { value: 'quit-job', label: "I'd quit my job" },
-            { value: 'stop-stress', label: "I'd stop stressing about money constantly" },
-            { value: 'made-it', label: "I'd finally feel like I made it" },
-            { value: 'freedom', label: "I'd have actual freedom to live how I want" },
+            { value: 'stop-stress', label: "I'd stop stressing about money all the time" },
+            { value: 'made-it', label: "I'd finally feel like I actually made it" },
+            { value: 'freedom', label: "I'd have real freedom — my time would be mine" },
             { value: 'take-care', label: "I'd be able to take care of the people I love" },
-            { value: 'everything', label: 'Everything would change' },
+            { value: 'everything', label: 'Honestly? Everything would change' },
           ],
           stateKey: 'assessment.whatWouldChange',
+          sectionLabel: "What's At Stake",
+          sectionIndex: 4,
         },
 
-        // Q16: Urgency
+        // Q17: Urgency
         {
-          stepKey: 'q16-urgency',
+          stepKey: 'q17-urgency',
           type: 'question',
           questionType: 'multiple-choice',
           question: "How urgent is this for you?",
           options: [
-            { value: 'patient', label: "I'm patient... I just want to find the right thing" },
-            { value: '6mo', label: "I'd like to see real progress in the next 6 months" },
+            { value: 'patient', label: "I'm patient — I just want to find the right thing" },
+            { value: '6mo', label: 'I want real progress in the next 6 months' },
             { value: 'this-year', label: 'I need something to work this year' },
-            { value: 'urgent', label: "It's urgent... I'm running low on time or money" },
-            { value: 'ready-now', label: "No specific timeline, but I'm ready to move now" },
+            { value: 'urgent', label: "It's urgent — I'm running out of time or money or both" },
+            { value: 'ready-now', label: "I'm ready to move now — I'm done waiting" },
           ],
           stateKey: 'assessment.urgency',
+          sectionLabel: "What's At Stake",
+          sectionIndex: 4,
         },
 
-        // Q17: Biggest fear
+        // Q18: Biggest fear
         {
-          stepKey: 'q17-fear',
+          stepKey: 'q18-fear',
           type: 'question',
           questionType: 'multiple-choice',
-          question: "What's your biggest fear about all of this?",
+          question: "What are you most afraid of?",
           options: [
-            { value: 'stuck', label: "That I'll still be stuck in the same place a year from now" },
-            { value: 'waste-money', label: "That I'll waste more money on something that doesn't work" },
-            { value: 'everyone-else', label: 'That everyone else will figure it out except me' },
-            { value: 'give-up', label: "That I'll eventually have to give up on this dream" },
-            { value: 'not-cut-out', label: "That maybe I'm just not cut out for this" },
+            { value: 'stuck', label: "I'm afraid I'll still be stuck in the same place a year from now" },
+            { value: 'waste-money', label: "I'm afraid I'll waste more money on something that doesn't work" },
+            { value: 'left-behind', label: "I'm afraid everyone else will figure it out and I'll get left behind" },
+            { value: 'give-up', label: "I'm afraid I'll eventually have to give up on this whole dream" },
+            { value: 'not-cut-out', label: "I'm afraid that maybe I'm just not cut out for this" },
           ],
           stateKey: 'assessment.biggestFear',
+          sectionLabel: "What's At Stake",
+          sectionIndex: 4,
         },
 
-        // CONTACT GATE: Name, Email, Phone
+        // ============================================================
+        // CONTACT CAPTURE
+        // ============================================================
         {
           stepKey: 'contact-gate',
           type: 'question',
           questionType: 'contact-info',
-          question: 'Enter your info to see your personalized diagnosis.',
+          question: 'Your diagnosis is ready to be built.',
+          instruction: "This isn't a generic result. It's being written specifically for you — based on everything you just shared.\n\nEnter your info below to see what's actually been in your way... and what to do about it.",
           fields: [
             { key: 'name', label: 'Name', type: 'text', placeholder: 'Your name', autoComplete: 'name' },
             { key: 'email', label: 'Email', type: 'email', placeholder: 'your@email.com', autoComplete: 'email' },
@@ -370,9 +480,12 @@ export const growthoperatorFlow: FlowDefinition = {
           ],
           stateKey: 'user',
           noBackButton: true,
+          hideProgressBar: true,
         },
 
+        // ============================================================
         // LOADING SCREEN
+        // ============================================================
         {
           stepKey: 'loading-diagnosis',
           type: 'loading',
@@ -395,16 +508,20 @@ export const growthoperatorFlow: FlowDefinition = {
             ],
             ready: "Alright it's ready... let's dive in.",
           },
-          minDuration: 12000, // 12 seconds minimum
+          minDuration: 12000,
           noBackButton: true,
+          hideProgressBar: true,
         },
 
-        // DIAGNOSIS SEQUENCE (8 screens handled by DiagnosisSequenceFlow)
+        // ============================================================
+        // DIAGNOSIS SEQUENCE (8 Screens)
+        // ============================================================
         {
           stepKey: 'diagnosis-sequence',
           type: 'diagnosis-sequence',
           promptKey: 'diagnosis-comprehensive',
           noBackButton: true,
+          hideProgressBar: true,
         },
       ],
     },

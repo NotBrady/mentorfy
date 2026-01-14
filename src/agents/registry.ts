@@ -7,6 +7,8 @@ import { growthoperatorQ2PersonalizeAgent } from './growthoperator/q2-personaliz
 import { growthoperatorQ3PersonalizeAgent } from './growthoperator/q3-personalize'
 import { growthoperatorQ4PersonalizeAgent } from './growthoperator/q4-personalize'
 import { growthoperatorQ5PersonalizeAgent } from './growthoperator/q5-personalize'
+import { growthoperatorQ8PersonalizeAgent } from './growthoperator/q8-personalize'
+import { growthoperatorQ14PersonalizeAgent } from './growthoperator/q14-personalize'
 import { growthoperatorDiagnosis1Agent } from './growthoperator/diagnosis-1'
 import { growthoperatorDiagnosis2Agent } from './growthoperator/diagnosis-2'
 import { growthoperatorDiagnosis3Agent } from './growthoperator/diagnosis-3'
@@ -14,6 +16,10 @@ import { growthoperatorFinalDiagnosisAgent } from './growthoperator/final-diagno
 import { growthoperatorPathRevealAgent } from './growthoperator/path-reveal'
 import { growthoperatorFitAssessmentAgent } from './growthoperator/fit-assessment'
 import { growthoperatorDiagnosisComprehensiveAgent } from './growthoperator/diagnosis-comprehensive'
+import { growthoperatorAIMoment1Agent } from './growthoperator/ai-moment-1'
+import { growthoperatorAIMoment2Agent } from './growthoperator/ai-moment-2'
+import { growthoperatorAIMoment3Agent } from './growthoperator/ai-moment-3'
+import { growthoperatorAIMoment4Agent } from './growthoperator/ai-moment-4'
 import { blackboxDiagnosisAgent } from './blackbox/diagnosis'
 
 const agents: Record<string, AgentConfig> = {
@@ -34,6 +40,14 @@ const agents: Record<string, AgentConfig> = {
   'growthoperator-final-diagnosis': growthoperatorFinalDiagnosisAgent,
   // Growth Operator v3 - comprehensive 8-screen diagnosis
   'growthoperator-diagnosis-comprehensive': growthoperatorDiagnosisComprehensiveAgent,
+  // Growth Operator v3 - AI Moments
+  'growthoperator-ai-moment-1': growthoperatorAIMoment1Agent,
+  'growthoperator-ai-moment-2': growthoperatorAIMoment2Agent,
+  'growthoperator-ai-moment-3': growthoperatorAIMoment3Agent,
+  'growthoperator-ai-moment-4': growthoperatorAIMoment4Agent,
+  // Growth Operator v3 - Q8 and Q14 Personalization
+  'growthoperator-q8-personalize': growthoperatorQ8PersonalizeAgent,
+  'growthoperator-q14-personalize': growthoperatorQ14PersonalizeAgent,
   // Legacy (keeping for backwards compatibility)
   'growthoperator-path-reveal': growthoperatorPathRevealAgent,
   'growthoperator-fit-assessment': growthoperatorFitAssessmentAgent,
