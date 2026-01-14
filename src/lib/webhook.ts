@@ -2,6 +2,7 @@ import { db, Session } from './db'
 import { getFlow } from '@/data/flows'
 
 export type WebhookEventType = 'lead.contact-captured'
+export type WebhookFormat = 'json' | 'slack'
 
 /**
  * Webhook payload sent when a lead submits contact information.
@@ -108,6 +109,102 @@ export function buildContactCapturedPayload(session: Session): WebhookPayload {
 }
 
 /**
+ * Format a webhook payload for the target service.
+ * - 'json': Raw structured payload (default, works with Zapier, n8n, custom endpoints)
+ * - 'slack': Slack Block Kit format with rich formatting
+ */
+// Question order for growthoperator flow (Q1-Q17)
+const GROWTHOPERATOR_QUESTION_ORDER = [
+  'modelTried',        // Q1
+  'modelsCount',       // Q2
+  'originalMotivation',// Q3
+  'bestResult',        // Q4
+  'whatHappened',      // Q5
+  'duration',          // Q6
+  'moneyInvested',     // Q7
+  'deeperCost',        // Q8
+  'educationSource',   // Q9
+  'teacherMoney',      // Q10
+  'beliefWhyFailed',   // Q11
+  'emotionalState',    // Q12
+  'shame',             // Q13
+  'whyKeepGoing',      // Q14
+  'whatWouldChange',   // Q15
+  'urgency',           // Q16
+  'biggestFear',       // Q17
+]
+
+/**
+ * Order answers by question sequence for readable output.
+ */
+function orderAnswers(answers: Record<string, any>, flowId: string): Record<string, any> {
+  const assessment = answers?.assessment
+  if (!assessment || flowId !== 'growthoperator') {
+    return answers
+  }
+
+  const ordered: Record<string, any> = {}
+  for (const key of GROWTHOPERATOR_QUESTION_ORDER) {
+    if (key in assessment) {
+      ordered[key] = assessment[key]
+    }
+  }
+  // Include any extra keys not in the order list
+  for (const key of Object.keys(assessment)) {
+    if (!(key in ordered)) {
+      ordered[key] = assessment[key]
+    }
+  }
+  return { assessment: ordered }
+}
+
+export function formatPayloadForDelivery(
+  payload: WebhookPayload,
+  format: WebhookFormat = 'json'
+): Record<string, any> {
+  if (format === 'slack') {
+    const s = payload.session
+    const orderedAnswers = orderAnswers(s.answers, s.flowId)
+    const answersJson = JSON.stringify(orderedAnswers, null, 2)
+    return {
+      text: `New lead: ${s.name || 'Unknown'} (${s.email || 'no email'})`,
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: '🎯 New Lead Captured', emoji: true },
+        },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Name:*\n${s.name || '_not provided_'}` },
+            { type: 'mrkdwn', text: `*Email:*\n${s.email || '_not provided_'}` },
+            { type: 'mrkdwn', text: `*Phone:*\n${s.phone || '_not provided_'}` },
+            { type: 'mrkdwn', text: `*Flow:*\n${s.flowId}` },
+          ],
+        },
+        {
+          type: 'divider',
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*📋 Assessment Answers*\n\`\`\`${answersJson}\`\`\``,
+          },
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `Session: \`${s.id}\` | ${new Date(payload.timestamp).toLocaleString()}` },
+          ],
+        },
+      ],
+    }
+  }
+  return payload
+}
+
+/**
  * Queue a webhook for contact info capture if the flow has a webhookUrl configured.
  * This is a no-op if the flow doesn't have webhooks enabled.
  */
@@ -133,14 +230,15 @@ export async function maybeQueueContactWebhook(session: Session): Promise<void> 
     return
   }
 
-  const payload = buildContactCapturedPayload(session)
+  const rawPayload = buildContactCapturedPayload(session)
+  const formattedPayload = formatPayloadForDelivery(rawPayload, flow.webhookFormat || 'json')
 
   await queueWebhook({
     sessionId: session.id,
     flowId: session.flow_id,
     eventType: 'lead.contact-captured',
     webhookUrl: flow.webhookUrl,
-    payload,
+    payload: formattedPayload as any,
   })
 }
 

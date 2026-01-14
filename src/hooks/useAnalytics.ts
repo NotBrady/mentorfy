@@ -193,6 +193,153 @@ export function useAnalytics(context: AnalyticsContext) {
     [posthog, context]
   )
 
+  // ─────────────────────────────────────────────────────────────
+  // disqualified
+  // ─────────────────────────────────────────────────────────────
+  const trackDisqualified = useCallback(
+    (props: {
+      reason: string
+      triggerStep: string
+      triggerValue: string
+      headline: string
+      timeInFlowMs: number
+    }) => {
+      posthog?.capture('disqualified', {
+        ...baseProps,
+        disqualification_reason: props.reason,
+        trigger_step: props.triggerStep,
+        trigger_value: props.triggerValue,
+        headline: props.headline,
+        time_in_flow_ms: props.timeInFlowMs,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // loading_started
+  // ─────────────────────────────────────────────────────────────
+  const trackLoadingStarted = useCallback(() => {
+    posthog?.capture('loading_started', {
+      ...baseProps,
+      contact_gate_completed: true,
+    })
+  }, [posthog, baseProps])
+
+  // ─────────────────────────────────────────────────────────────
+  // loading_completed
+  // ─────────────────────────────────────────────────────────────
+  const trackLoadingCompleted = useCallback(
+    (props: {
+      loadingDurationMs: number
+      generationSuccess: boolean
+      errorMessage?: string | null
+    }) => {
+      posthog?.capture('loading_completed', {
+        ...baseProps,
+        loading_duration_ms: props.loadingDurationMs,
+        generation_success: props.generationSuccess,
+        error_message: props.errorMessage ?? null,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // diagnosis_started
+  // ─────────────────────────────────────────────────────────────
+  const trackDiagnosisStarted = useCallback(
+    (props: {
+      generationDurationMs: number
+      totalQuestionsAnswered: number
+    }) => {
+      posthog?.capture('diagnosis_started', {
+        ...baseProps,
+        generation_duration_ms: props.generationDurationMs,
+        total_questions_answered: props.totalQuestionsAnswered,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // diagnosis_screen_viewed
+  // ─────────────────────────────────────────────────────────────
+  const trackDiagnosisScreenViewed = useCallback(
+    (props: {
+      screenIndex: number
+      screenTotal: number
+      timeOnPreviousScreenMs: number | null
+      isFinalScreen: boolean
+    }) => {
+      posthog?.capture('diagnosis_screen_viewed', {
+        ...baseProps,
+        screen_index: props.screenIndex,
+        screen_total: props.screenTotal,
+        time_on_previous_screen_ms: props.timeOnPreviousScreenMs,
+        is_final_screen: props.isFinalScreen,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // diagnosis_completed
+  // ─────────────────────────────────────────────────────────────
+  const trackDiagnosisCompleted = useCallback(
+    (props: {
+      totalDiagnosisTimeMs: number
+      screensViewed: number
+      averageTimePerScreenMs: number
+    }) => {
+      posthog?.capture('diagnosis_completed', {
+        ...baseProps,
+        total_diagnosis_time_ms: props.totalDiagnosisTimeMs,
+        screens_viewed: props.screensViewed,
+        average_time_per_screen_ms: props.averageTimePerScreenMs,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // diagnosis_screen_scrolled
+  // ─────────────────────────────────────────────────────────────
+  const trackDiagnosisScreenScrolled = useCallback(
+    (props: {
+      screenIndex: number
+      scrollDepthPercent: 25 | 50 | 75 | 100
+      timeToReachDepthMs: number
+    }) => {
+      posthog?.capture('diagnosis_screen_scrolled', {
+        ...baseProps,
+        screen_index: props.screenIndex,
+        scroll_depth_percent: props.scrollDepthPercent,
+        time_to_reach_depth_ms: props.timeToReachDepthMs,
+      })
+    },
+    [posthog, baseProps]
+  )
+
+  // ─────────────────────────────────────────────────────────────
+  // cta_viewed
+  // ─────────────────────────────────────────────────────────────
+  const trackCtaViewed = useCallback(
+    (props: {
+      ctaType: string
+      timeSinceDiagnosisStartMs: number
+      diagnosisScreensViewed: number
+    }) => {
+      posthog?.capture('cta_viewed', {
+        ...baseProps,
+        cta_type: props.ctaType,
+        time_since_diagnosis_start_ms: props.timeSinceDiagnosisStartMs,
+        diagnosis_screens_viewed: props.diagnosisScreensViewed,
+      })
+    },
+    [posthog, baseProps]
+  )
+
   return {
     startStepTimer,
     startPhaseTimer,
@@ -204,5 +351,13 @@ export function useAnalytics(context: AnalyticsContext) {
     trackEmbedShown,
     trackBookingClicked,
     identify,
+    trackDisqualified,
+    trackLoadingStarted,
+    trackLoadingCompleted,
+    trackDiagnosisStarted,
+    trackDiagnosisScreenViewed,
+    trackDiagnosisCompleted,
+    trackDiagnosisScreenScrolled,
+    trackCtaViewed,
   }
 }

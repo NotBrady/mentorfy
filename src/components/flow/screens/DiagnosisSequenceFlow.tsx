@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { InlineWidget } from 'react-calendly'
 import { GlassHeader } from '../shared/GlassHeader'
 import { StepProgress } from '../shared/StepProgress'
 import { COLORS } from '@/config/flow'
+import { useAnalytics } from '@/hooks/useAnalytics'
+import { getCalendlyUrlWithSession } from '@/lib/calendly'
 
 function normalizeMarkdown(content: string): string {
   return content.replace(/([^\n])\n?(## )/g, '$1\n\n$2')
@@ -17,6 +19,8 @@ interface DiagnosisSequenceFlowProps {
   calendlyUrl?: string
   onBack?: () => void
   flowId?: string
+  sessionId?: string
+  generationDurationMs?: number
 }
 
 /**
@@ -36,7 +40,17 @@ interface DiagnosisSequenceFlowProps {
  * but adds complexity. Consider refactoring if more nested flows are needed.
  * See: bd issue for future refactoring considerations.
  */
-export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = 'growthoperator' }: DiagnosisSequenceFlowProps) {
+export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = 'growthoperator', sessionId, generationDurationMs = 0 }: DiagnosisSequenceFlowProps) {
+  // Analytics
+  const analytics = useAnalytics({ session_id: sessionId || '', flow_id: flowId })
+  const diagnosisStartTimeRef = useRef<number>(Date.now())
+  const screenStartTimeRef = useRef<number>(Date.now())
+  const previousScreenIndexRef = useRef<number | null>(null)
+  const diagnosisStartedFiredRef = useRef(false)
+  const diagnosisCompletedFiredRef = useRef(false)
+  const ctaViewedFiredRef = useRef(false)
+  const firedScrollThresholdsRef = useRef<Set<number>>(new Set())
+
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0)
   const [direction, setDirection] = useState(1)
   const [visitedScreens, setVisitedScreens] = useState<Set<number>>(new Set([0]))
@@ -48,6 +62,79 @@ export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = '
   const isLastScreen = currentScreenIndex === screens.length - 1
   const hasVisited = visitedScreens.has(currentScreenIndex)
   const totalScreens = screens.length || 8
+
+  // Fire diagnosis_started on mount
+  useEffect(() => {
+    if (!diagnosisStartedFiredRef.current) {
+      diagnosisStartedFiredRef.current = true
+      diagnosisStartTimeRef.current = Date.now()
+      analytics.trackDiagnosisStarted({
+        generationDurationMs,
+        totalQuestionsAnswered: 17,
+      })
+    }
+  }, [])
+
+  // Fire diagnosis_screen_viewed on screen change
+  useEffect(() => {
+    const timeOnPrevious = previousScreenIndexRef.current !== null
+      ? Date.now() - screenStartTimeRef.current
+      : null
+
+    analytics.trackDiagnosisScreenViewed({
+      screenIndex: currentScreenIndex,
+      screenTotal: totalScreens,
+      timeOnPreviousScreenMs: timeOnPrevious,
+      isFinalScreen: currentScreenIndex === totalScreens - 1,
+    })
+
+    // Reset for next screen
+    screenStartTimeRef.current = Date.now()
+    previousScreenIndexRef.current = currentScreenIndex
+    firedScrollThresholdsRef.current = new Set()
+
+    // Fire diagnosis_completed and cta_viewed when reaching final screen
+    if (currentScreenIndex === totalScreens - 1) {
+      if (!diagnosisCompletedFiredRef.current) {
+        diagnosisCompletedFiredRef.current = true
+        const totalTime = Date.now() - diagnosisStartTimeRef.current
+        analytics.trackDiagnosisCompleted({
+          totalDiagnosisTimeMs: totalTime,
+          screensViewed: totalScreens,
+          averageTimePerScreenMs: Math.round(totalTime / totalScreens),
+        })
+      }
+      if (!ctaViewedFiredRef.current) {
+        ctaViewedFiredRef.current = true
+        analytics.trackCtaViewed({
+          ctaType: 'calendly_booking',
+          timeSinceDiagnosisStartMs: Date.now() - diagnosisStartTimeRef.current,
+          diagnosisScreensViewed: totalScreens,
+        })
+      }
+    }
+  }, [currentScreenIndex])
+
+  // Scroll tracking handler
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const scrollHeight = el.scrollHeight - el.clientHeight
+    if (scrollHeight <= 0) return // No scrollable content
+
+    const scrollPercent = Math.round((el.scrollTop / scrollHeight) * 100)
+    const thresholds = [25, 50, 75, 100] as const
+
+    for (const threshold of thresholds) {
+      if (scrollPercent >= threshold && !firedScrollThresholdsRef.current.has(threshold)) {
+        firedScrollThresholdsRef.current.add(threshold)
+        analytics.trackDiagnosisScreenScrolled({
+          screenIndex: currentScreenIndex,
+          scrollDepthPercent: threshold,
+          timeToReachDepthMs: Date.now() - screenStartTimeRef.current,
+        })
+      }
+    }
+  }, [currentScreenIndex, analytics])
 
   useEffect(() => {
     if (hasVisited && currentScreenIndex !== 0) {
@@ -99,13 +186,16 @@ export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = '
   }
 
   return (
-    <div style={{
-      backgroundColor: COLORS.BACKGROUND,
-      minHeight: '100vh',
-      position: 'relative',
-      overflowX: 'hidden',
-      overflowY: 'auto',
-    }}>
+    <div
+      onScroll={handleScroll}
+      style={{
+        backgroundColor: COLORS.BACKGROUND,
+        minHeight: '100vh',
+        position: 'relative',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+      }}
+    >
       <GlassHeader
         onBack={goToPreviousScreen}
         showBackButton={currentScreenIndex > 0}
@@ -170,7 +260,7 @@ export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = '
               }}
             >
               <InlineWidget
-                url={calendlyUrl}
+                url={getCalendlyUrlWithSession(calendlyUrl, sessionId)}
                 styles={{ height: '700px', minWidth: '100%' }}
                 pageSettings={{
                   backgroundColor: 'FAF6F0',

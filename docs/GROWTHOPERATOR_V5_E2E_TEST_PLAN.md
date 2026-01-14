@@ -442,11 +442,13 @@ The v5 flow consists of:
 
 The diagnosis sequence is a nested flow with its own navigation. Each screen should be tested individually.
 
+**Progress Indicator:** The diagnosis uses a visual dot-based progress bar (not text). It shows 8 dots where completed steps are small green dots, the current step is an elongated black pill, and future steps are small gray dots.
+
 #### Screen 1: The Mirror
 
 **Assert:** Own header with Brady Badour avatar and name
 **Assert:** Back button NOT visible on first screen
-**Assert:** Own progress indicator showing `1 of 8`
+**Assert:** Visual progress indicator with 1st dot active (black pill), dots 2-8 gray
 **Assert:** Typing animation on first visit (6-12ms per 3 chars)
 
 **Assert content should include:**
@@ -467,7 +469,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 #### Screen 2: The Pattern
 
 **Assert:** Back button IS visible
-**Assert:** Progress shows `2 of 8`
+**Assert:** Progress indicator: dot 1 green, dot 2 active (black pill), dots 3-8 gray
 **Assert:** If revisiting, content appears instantly (no typing animation)
 
 **Assert content should:**
@@ -481,7 +483,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 3: The Paradigm Shift
 
-**Assert:** Progress shows `3 of 8`
+**Assert:** Progress indicator: dots 1-2 green, dot 3 active, dots 4-8 gray
 
 **Assert content should include:**
 - The "shovel sellers" revelation
@@ -495,7 +497,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 4: The Absolution
 
-**Assert:** Progress shows `4 of 8`
+**Assert:** Progress indicator: dots 1-3 green, dot 4 active, dots 5-8 gray
 
 **Assert content should include:**
 - **"You weren't failing."** (bold)
@@ -509,7 +511,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 5: The Proof
 
-**Assert:** Progress shows `5 of 8`
+**Assert:** Progress indicator: dots 1-4 green, dot 5 active, dots 6-8 gray
 
 **Assert content should include:**
 - Acknowledgment of skepticism
@@ -525,7 +527,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 6: The Reveal
 
-**Assert:** Progress shows `6 of 8`
+**Assert:** Progress indicator: dots 1-5 green, dot 6 active, dots 7-8 gray
 
 **Assert content should include:**
 - **"It's called being a Growth Operator."** (bold)
@@ -540,7 +542,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 7: The Stakes
 
-**Assert:** Progress shows `7 of 8`
+**Assert:** Progress indicator: dots 1-6 green, dot 7 active, dot 8 gray
 
 **Assert content should include:**
 - Callback to Q3 (original motivation - escape 9-5)
@@ -555,7 +557,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 
 #### Screen 8: The Close
 
-**Assert:** Progress shows `8 of 8`
+**Assert:** Progress indicator: dots 1-7 green, dot 8 active
 **Assert:** No "Continue" button on final screen
 
 **Assert content should include:**
@@ -568,13 +570,16 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 **CRITICAL ASSERT - Calendly Booking Widget:**
 - **Assert:** Calendly booking widget appears inline after the main copy
 - **Assert:** Widget URL contains: `https://calendly.com/brady-mentorfy/30min`
+- **Assert:** Widget URL contains `session_id` parameter with valid session ID (e.g., `?session_id=abc123...`)
 - **Assert:** Widget height is 700px
 - **Assert:** Widget theme colors: backgroundColor FAF6F0, primaryColor 10B981
 
-**Assert:** After the Calendly embed, future pace text appears:
-- **"Once you book, we keep going."**
-- Reference to their Q15 goal
-- **"This is just the beginning."**
+**Session Tracking Verification:**
+To verify session_id is passed to Calendly:
+1. Open browser DevTools → Network tab
+2. Filter by "calendly"
+3. Inspect the iframe src URL
+4. Assert URL contains `session_id=` parameter with a non-empty value matching the current session
 
 ---
 
@@ -597,7 +602,7 @@ The diagnosis sequence is a nested flow with its own navigation. Each screen sho
 | Q1-Q17 | Yes | Yes (shows X of 17) |
 | Contact Gate | Yes | Yes (shows 17 of 17) |
 | Loading Screen | **No** | **No** |
-| Diagnosis | **No** (uses own) | **No** (uses own 1-8) |
+| Diagnosis | **No** (uses own) | **No** (uses own 8-dot visual indicator) |
 
 ### Back Button Behavior in Diagnosis Sequence
 
@@ -796,7 +801,7 @@ When an assertion fails, report using this format:
 | Diagnosis Screen 4 | 20.4 | Model-specific absolution line |
 | Diagnosis Screen 5 | 20.5 | Kade/Nick/Carson case studies with $ numbers |
 | Diagnosis Screen 6 | 20.6 | "Growth Operator" reveal + math |
-| Diagnosis Screen 8 | 20.8 | Calendly widget + future pace copy |
+| Diagnosis Screen 8 | 20.8 | Calendly widget inline after copy |
 
 ---
 

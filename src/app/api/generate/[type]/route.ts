@@ -30,8 +30,8 @@ type RouteContext = { params: Promise<{ type: string }> }
 
 // Map flow + type + promptKey to agent ID
 function getAgentId(flowId: string, type: string, promptKey?: string): string | undefined {
-  // Growth Operator v2/v3/v4 uses promptKey-based routing (includes debug variant)
-  if ((flowId === 'growthoperator' || flowId === 'growthoperator-debug') && type === 'diagnosis' && promptKey) {
+  // Growth Operator v2/v3/v4 uses promptKey-based routing
+  if (flowId === 'growthoperator' && type === 'diagnosis' && promptKey) {
     const promptKeyToAgent: Record<string, string> = {
       // v3 comprehensive 8-screen diagnosis (Opus 4.5)
       'diagnosis-comprehensive': 'growthoperator-diagnosis-comprehensive',
@@ -225,38 +225,32 @@ export async function POST(req: Request, context: RouteContext) {
       prompt: langfusePrompt,
     })
 
-    // Build messages with cache control for Anthropic models
-    // The system prompt is ~8KB and benefits significantly from caching
+    // Build messages array
+    // Note: Anthropic prompt caching disabled - requires 4096+ tokens for Opus 4.5,
+    // our prompts are ~3500 tokens, and benchmarks showed no latency benefit anyway
     const isAnthropic = agent.provider === 'anthropic'
-    const streamMessages = isAnthropic
-      ? [
-          {
-            role: 'system' as const,
-            content: systemPrompt,
-            providerOptions: {
-              anthropic: { cacheControl: { type: 'ephemeral' } },
-            },
-          },
-          { role: 'user' as const, content: userMessage },
-        ]
-      : [{ role: 'user' as const, content: userMessage }]
+    const streamMessages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userMessage },
+    ]
 
     const result = streamText({
       model: getModel(agent),
-      // Only use system param for non-Anthropic (Google) models
       system: isAnthropic ? undefined : systemPrompt,
-      messages: streamMessages,
+      messages: isAnthropic ? streamMessages : [{ role: 'user' as const, content: userMessage }],
       tools: Object.keys(tools || {}).length > 0 ? tools : undefined,
       maxOutputTokens: agent.maxTokens,
       temperature: agent.temperature,
       onFinish: ({ text, usage, finishReason, providerMetadata }) => {
         // Log cache stats if available (Anthropic only)
-        const cacheStats = providerMetadata?.anthropic
-        if (cacheStats) {
+        const anthropicUsage = providerMetadata?.anthropic?.usage as
+          | { cache_creation_input_tokens?: number; cache_read_input_tokens?: number }
+          | undefined
+        if (anthropicUsage) {
           trace.update({
             metadata: {
-              cacheCreationInputTokens: cacheStats.cacheCreationInputTokens,
-              cacheReadInputTokens: cacheStats.cacheReadInputTokens,
+              cacheCreationInputTokens: anthropicUsage.cache_creation_input_tokens,
+              cacheReadInputTokens: anthropicUsage.cache_read_input_tokens,
             },
           })
         }

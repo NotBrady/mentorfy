@@ -15,6 +15,7 @@ import { useAnalytics } from '@/hooks/useAnalytics'
 import { COLORS } from '@/config/flow'
 import { LoadingScreenStepContent } from './LoadingScreenStepContent'
 import { DiagnosisSequenceFlow } from './DiagnosisSequenceFlow'
+import { getCalendlyUrlWithSession } from '@/lib/calendly'
 
 // Normalize markdown to ensure ## headers are properly separated
 function normalizeMarkdown(content: string): string {
@@ -1039,7 +1040,7 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
             }}
           >
             <InlineWidget
-              url={embedData.calendlyUrl}
+              url={getCalendlyUrlWithSession(embedData.calendlyUrl, sessionId || undefined)}
               styles={{ height: '700px', minWidth: '100%' }}
               pageSettings={{
                 backgroundColor: 'FAF6F0',
@@ -1675,7 +1676,7 @@ function SalesPageStepContent({ step, onContinue, onSkip, flowId = 'rafael-tats'
               {isCalendlyVariant ? (
                 /* Calendly embed */
                 <InlineWidget
-                  url={step.calendlyUrl || flow.embeds.calendlyUrl}
+                  url={getCalendlyUrlWithSession(step.calendlyUrl || flow.embeds.calendlyUrl, state.sessionId || undefined)}
                   styles={{ height: '700px', minWidth: '100%' }}
                   pageSettings={{
                     backgroundColor: 'FAF6F0',
@@ -2064,6 +2065,14 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
         headline: step.exitCondition.headline,
         message: step.exitCondition.message,
       })
+      // Track disqualified event
+      analytics.trackDisqualified({
+        reason: 'no_prior_attempt',
+        triggerStep: step.stepKey,
+        triggerValue: value,
+        headline: step.exitCondition.headline,
+        timeInFlowMs: 0, // TODO: Track flow start time in session for accurate timing
+      })
       return // Don't proceed to next step
     }
 
@@ -2193,6 +2202,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
             calendlyUrl={flow.embeds?.calendlyUrl}
             onBack={goToPreviousStep}
             flowId={flowId}
+            sessionId={state.sessionId || undefined}
           />
         )
 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { COLORS } from '@/config/flow'
 import { MentorAvatar } from '../shared/MentorAvatar'
 import { MentorBadge } from '../shared/MentorBadge'
+import { useAnalytics } from '@/hooks/useAnalytics'
 
 interface LoadingScreenStepContentProps {
   step: any
@@ -18,6 +19,11 @@ interface LoadingScreenStepContentProps {
  * Features mentor avatar with pulsing animation and typing messages.
  */
 export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId = 'growthoperator' }: LoadingScreenStepContentProps) {
+  // Analytics
+  const analytics = useAnalytics({ session_id: sessionId || '', flow_id: flowId })
+  const loadingStartTimeRef = useRef<number>(Date.now())
+  const loadingCompletedFiredRef = useRef(false)
+
   // Message cycling state
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const [displayedText, setDisplayedText] = useState('')
@@ -34,8 +40,15 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
   const hasCalledComplete = useRef(false)
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Initial messages shown once during first loop
-  const initialMessages = [
+  // Fire loading_started on mount
+  useEffect(() => {
+    analytics.trackLoadingStarted()
+    loadingStartTimeRef.current = Date.now()
+  }, [])
+
+  // Messages from flow config (with fallbacks)
+  const messages = step.loadingMessages || {}
+  const initialMessages = messages.initial || [
     'Analyzing your responses...',
     'Identifying patterns in your journey...',
     'This is interesting...',
@@ -43,9 +56,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
     'I see what happened here...',
     'Preparing your diagnosis...',
   ]
-
-  // Messages that loop after initial set (while still waiting for API)
-  const waitingLoopMessages = [
+  const waitingLoopMessages = messages.waiting || [
     'Almost there...',
     'Just a moment longer...',
     'Putting the finishing touches...',
@@ -53,8 +64,7 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
     'Still working on it...',
     'Hang tight...',
   ]
-
-  const readyMessage = "Alright it's ready... let's dive in."
+  const readyMessage = messages.ready || "Alright it's ready... let's dive in."
 
   // Track if we're showing the ready message
   const [showingReadyMessage, setShowingReadyMessage] = useState(false)
@@ -194,16 +204,43 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
         if (validScreens.length > 0) {
           setDiagnosisScreens(validScreens)
           setDiagnosisReady(true)
+          // Track loading completed - success
+          if (!loadingCompletedFiredRef.current) {
+            loadingCompletedFiredRef.current = true
+            analytics.trackLoadingCompleted({
+              loadingDurationMs: Date.now() - loadingStartTimeRef.current,
+              generationSuccess: true,
+              errorMessage: null,
+            })
+          }
         } else {
           // Check if the response indicates an error
-          if (fullText.length === 0 || fullText.includes('error') || fullText.includes('Overloaded')) {
-            setError('Our AI is currently experiencing high demand. Please try again in a moment.')
-          } else {
-            setError('Failed to generate your diagnosis. Please try again.')
+          const errorMsg = fullText.length === 0 || fullText.includes('error') || fullText.includes('Overloaded')
+            ? 'Our AI is currently experiencing high demand. Please try again in a moment.'
+            : 'Failed to generate your diagnosis. Please try again.'
+          setError(errorMsg)
+          // Track loading completed - failure
+          if (!loadingCompletedFiredRef.current) {
+            loadingCompletedFiredRef.current = true
+            analytics.trackLoadingCompleted({
+              loadingDurationMs: Date.now() - loadingStartTimeRef.current,
+              generationSuccess: false,
+              errorMessage: errorMsg,
+            })
           }
         }
-      } catch {
-        setError('Something went wrong. Please try again.')
+      } catch (e) {
+        const errorMsg = 'Something went wrong. Please try again.'
+        setError(errorMsg)
+        // Track loading completed - exception
+        if (!loadingCompletedFiredRef.current) {
+          loadingCompletedFiredRef.current = true
+          analytics.trackLoadingCompleted({
+            loadingDurationMs: Date.now() - loadingStartTimeRef.current,
+            generationSuccess: false,
+            errorMessage: e instanceof Error ? e.message : errorMsg,
+          })
+        }
       }
     }
 
