@@ -119,6 +119,7 @@ export function formatPayloadForDelivery(
 ): Record<string, any> {
   if (format === 'slack') {
     const s = payload.session
+    const answersJson = JSON.stringify(s.answers, null, 2)
     return {
       text: `New lead: ${s.name || 'Unknown'} (${s.email || 'no email'})`,
       blocks: [
@@ -134,6 +135,16 @@ export function formatPayloadForDelivery(
             { type: 'mrkdwn', text: `*Phone:*\n${s.phone || '_not provided_'}` },
             { type: 'mrkdwn', text: `*Flow:*\n${s.flowId}` },
           ],
+        },
+        {
+          type: 'divider',
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*📋 Assessment Answers*\n\`\`\`${answersJson}\`\`\``,
+          },
         },
         {
           type: 'context',
