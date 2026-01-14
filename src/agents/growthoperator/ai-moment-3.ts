@@ -102,29 +102,21 @@ FORMAT:
 - Bold key phrases if needed for emphasis
 - End with the pre-frame on its own line
 
-WORD COUNT: 120-180 words.
+WORD COUNT: 80-120 words. Keep it SHORT and punchy.
 
 EXAMPLE OUTPUT:
 
 "Here's what I'm seeing.
 
-Every model you tried — you were the one who needed the credibility. The knowledge. The proof. You were always trying to build authority from zero.
+Every model you tried — you were the one who needed the credibility. The knowledge. The proof that you knew what you were talking about. You were always trying to build authority from zero. That's not just hard. That's the HARDEST position in any business.
 
-And you already noticed something: the people teaching you? They weren't making money DOING the thing. They were making money teaching it.
+You think your teachers made money doing the thing. Maybe some did. But think about it — if doing was so profitable, why were they spending so much time teaching YOU?
 
-You've had the thought 'maybe I'm not smart enough for this' AND 'the game feels rigged.'
+You've had the thought that you've "wasted time." You have. But not because you can't execute.
 
-Here's what that tells me:
+You're not failing because you can't execute. You've been executing in the wrong position.
 
-**You're not failing because you can't execute. You've been executing in the wrong position.**
-
-You were trying to build something that requires credibility you didn't have yet, using tactics from people who already had what you were trying to build.
-
-That's not a fair fight.
-
-There's more here. But I need to understand something first.
-
-One more question. The important one."
+There's one thing I need to understand. The real thing."
 
 DO NOT:
 - Be vague or generic

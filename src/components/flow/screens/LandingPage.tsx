@@ -102,19 +102,19 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           <MentorBadge flowId={flowId} />
         </motion.div>
 
-        {/* Callout (optional - the hook) - italic, black, bold, one line */}
+        {/* Callout (optional - the hook) - italic, black, bold */}
         {mentor.welcome.callout && (
           <motion.p
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '21px',
+              fontSize: 'clamp(16px, 4.5vw, 21px)',
               fontWeight: '600',
               fontStyle: 'italic',
               color: '#000000',
               lineHeight: '1.45',
               margin: '0 0 8px 0',
-              whiteSpace: 'nowrap',
+              padding: '0 8px',
             }}
           >
             <TextWithAccent
@@ -124,17 +124,18 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           </motion.p>
         )}
 
-        {/* Headline - Large bold text, sized so "haven't been told." orphans */}
+        {/* Headline - Large bold text, responsive sizing */}
         <motion.h1
           variants={item}
           style={{
             fontFamily: "'Lora', Charter, Georgia, serif",
-            fontSize: '30px',
+            fontSize: 'clamp(24px, 6vw, 30px)',
             fontWeight: '600',
             color: '#000000',
             lineHeight: '1.3',
             margin: '0 0 24px 0',
             maxWidth: '480px',
+            padding: '0 8px',
           }}
         >
           <TextWithAccent
@@ -143,17 +144,18 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
           />
         </motion.h1>
 
-        {/* Subheadline - same size as callout */}
+        {/* Subheadline - responsive sizing */}
         {mentor.welcome.subheadline && (
           <motion.p
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '21px',
+              fontSize: 'clamp(16px, 4.5vw, 21px)',
               fontWeight: '400',
               color: '#666666',
               lineHeight: '1.5',
               margin: '0 0 20px 0',
+              padding: '0 8px',
             }}
           >
             {mentor.welcome.subheadline}
@@ -225,7 +227,7 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
             variants={item}
             style={{
               fontFamily: "'Lora', Charter, Georgia, serif",
-              fontSize: '16px',
+              fontSize: 'clamp(14px, 3.5vw, 16px)',
               fontWeight: '400',
               fontStyle: 'italic',
               color: '#888888',
@@ -233,6 +235,7 @@ export function LandingPage({ onStart, flowId = 'rafael-tats' }: LandingPageProp
               margin: '24px 0 0 0',
               maxWidth: '480px',
               textAlign: 'center',
+              padding: '0 8px',
             }}
           >
             {mentor.welcome.disclaimer}

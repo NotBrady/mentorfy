@@ -25,9 +25,10 @@ function normalizeMarkdown(content: string): string {
 interface MultipleChoiceStepContentProps {
   step: any
   onAnswer: (stateKey: string, value: string) => void
+  sessionId?: string
 }
 
-function MultipleChoiceStepContent({ step, onAnswer }: MultipleChoiceStepContentProps) {
+function MultipleChoiceStepContent({ step, onAnswer, sessionId }: MultipleChoiceStepContentProps) {
   const [selected, setSelected] = useState<string | null>(null)
 
   // Typing animation state - same as other questions
@@ -37,14 +38,86 @@ function MultipleChoiceStepContent({ step, onAnswer }: MultipleChoiceStepContent
   const [isTyping, setIsTyping] = useState(false)
   const [typingComplete, setTypingComplete] = useState(false)
 
-  // Set fullQuestion after brief cursor delay
+  // For static questions, set fullQuestion after brief cursor delay
   useEffect(() => {
+    if (step.personalizePromptKey) return // Skip for personalized - handled below
+
     const delay = setTimeout(() => {
       setFullQuestion(step.question)
       setIsWaitingForResponse(false)
     }, 150) // Quick cursor flash
     return () => clearTimeout(delay)
-  }, [step.question])
+  }, [step.personalizePromptKey, step.question])
+
+  // Fetch personalized question if step has personalizePromptKey
+  useEffect(() => {
+    if (!step.personalizePromptKey || !sessionId) return
+
+    const abortController = new AbortController()
+    let cancelled = false
+
+    // Reset all typing animation states
+    setIsWaitingForResponse(true)
+    setIsTyping(false)
+    setTypingComplete(false)
+    setDisplayedQuestion('')
+    setFullQuestion(null)
+
+    const fetchWithRetry = async (retries = 2): Promise<void> => {
+      try {
+        const res = await fetch('/api/generate/personalize-question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            baseQuestion: step.baseQuestion || step.question,
+            promptKey: step.personalizePromptKey,
+          }),
+          signal: abortController.signal,
+        })
+
+        // Retry on rate limit
+        if (res.status === 429 && retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          return fetchWithRetry(retries - 1)
+        }
+
+        if (!res.ok) throw new Error('Failed to personalize question')
+
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        const decoder = new TextDecoder()
+        let fullText = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fullText += decoder.decode(value, { stream: true })
+        }
+
+        if (!cancelled) {
+          setFullQuestion(fullText.trim())
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError' || cancelled) return
+        console.error('Error personalizing question:', err)
+        if (!cancelled) {
+          setFullQuestion(step.baseQuestion || step.question)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsWaitingForResponse(false)
+        }
+      }
+    }
+
+    fetchWithRetry()
+
+    return () => {
+      cancelled = true
+      abortController.abort()
+    }
+  }, [step.personalizePromptKey, step.baseQuestion, step.question, sessionId])
 
   // Start typing after brief pause once we have the question
   useEffect(() => {
@@ -674,6 +747,48 @@ function ContactInfoStepContent({ step, onAnswer, analytics }: ContactInfoStepCo
   const [values, setValues] = useState<Record<string, string>>({})
   const [focusedField, setFocusedField] = useState<string | null>(null)
 
+  // Typing animation state
+  const [fullQuestion, setFullQuestion] = useState<string | null>(null)
+  const [displayedQuestion, setDisplayedQuestion] = useState('')
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(true)
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingComplete, setTypingComplete] = useState(false)
+
+  // Set fullQuestion after brief cursor delay
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setFullQuestion(step.question)
+      setIsWaitingForResponse(false)
+    }, 150)
+    return () => clearTimeout(delay)
+  }, [step.question])
+
+  // Start typing after brief pause once we have the question
+  useEffect(() => {
+    if (!fullQuestion || typingComplete) return
+    const delay = setTimeout(() => {
+      setIsTyping(true)
+    }, 200)
+    return () => clearTimeout(delay)
+  }, [fullQuestion, typingComplete])
+
+  // Type out characters
+  useEffect(() => {
+    if (!isTyping || !fullQuestion) return
+
+    if (displayedQuestion.length < fullQuestion.length) {
+      const typeSpeed = 8 + Math.random() * 8
+      const charsToAdd = 2
+      const timeout = setTimeout(() => {
+        setDisplayedQuestion(fullQuestion.slice(0, displayedQuestion.length + charsToAdd))
+      }, typeSpeed)
+      return () => clearTimeout(timeout)
+    } else {
+      setIsTyping(false)
+      setTypingComplete(true)
+    }
+  }, [isTyping, displayedQuestion, fullQuestion])
+
   const handleChange = (key: string, value: string) => {
     setValues(prev => ({ ...prev, [key]: value }))
   }
@@ -702,6 +817,8 @@ function ContactInfoStepContent({ step, onAnswer, analytics }: ContactInfoStepCo
     onAnswer(step.stateKey, values)
   }
 
+  const showCursor = isWaitingForResponse || (fullQuestion && !isTyping && !typingComplete)
+
   return (
     <div style={{
       maxWidth: '480px',
@@ -711,22 +828,22 @@ function ContactInfoStepContent({ step, onAnswer, analytics }: ContactInfoStepCo
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Progress is now persistent in parent */}
-
-      {/* Question - Main Focus (no avatar) */}
+      {/* Question with typing animation */}
       <div style={{
         fontFamily: "'Lora', Charter, Georgia, serif",
-        fontSize: '24px',
-        fontWeight: '600',
+        fontSize: '18px',
+        fontWeight: '500',
         color: '#000',
-        textAlign: 'center',
-        lineHeight: '1.4',
+        textAlign: 'left',
+        lineHeight: '1.5',
         marginBottom: '32px',
+        whiteSpace: 'pre-line',
       }}>
-        {step.question}
+        {displayedQuestion || ''}
+        {showCursor && <span className="typing-cursor" />}
       </div>
 
-      {/* Input Fields - Inner shadow styling (typing into the page) */}
+      {/* Input Fields - fade in one at a time when typing complete */}
       <style>{`
         .contact-input:-webkit-autofill,
         .contact-input:-webkit-autofill:hover,
@@ -738,66 +855,96 @@ function ContactInfoStepContent({ step, onAnswer, analytics }: ContactInfoStepCo
           caret-color: #111;
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
-        {step.fields.map((field: any) => (
-          <input
-            key={field.key}
-            id={field.key}
-            name={field.key}
-            type={field.type}
-            autoComplete={field.autoComplete || 'off'}
-            className="contact-input"
-            value={values[field.key] || ''}
-            onChange={(e) => handleChange(field.key, e.target.value)}
-            onFocus={() => setFocusedField(field.key)}
-            onBlur={() => setFocusedField(null)}
-            placeholder={field.placeholder}
-            style={{
-              width: '100%',
-              padding: '18px 20px',
-              backgroundColor: '#E8E3DC',
-              border: focusedField === field.key ? `2px solid ${COLORS.ACCENT}` : '1px solid #DDD8D0',
-              borderRadius: '14px',
-              fontSize: '16px',
-              fontFamily: "'Lora', Charter, Georgia, serif",
-              color: '#111',
-              outline: 'none',
-              boxShadow: focusedField === field.key
-                ? `inset 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 3px rgba(16, 185, 129, 0.15)`
-                : 'inset 0 2px 6px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.06)',
-              transition: 'all 0.15s ease',
+      <AnimatePresence>
+        {typingComplete && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: {
+                transition: {
+                  staggerChildren: 0.08,
+                },
+              },
             }}
-          />
-        ))}
-      </div>
+            style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}
+          >
+            {step.fields.map((field: any) => (
+              <motion.input
+                key={field.key}
+                id={field.key}
+                name={field.key}
+                type={field.type}
+                autoComplete={field.autoComplete || 'off'}
+                className="contact-input"
+                value={values[field.key] || ''}
+                onChange={(e) => handleChange(field.key, e.target.value)}
+                onFocus={() => setFocusedField(field.key)}
+                onBlur={() => setFocusedField(null)}
+                placeholder={field.placeholder}
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                style={{
+                  width: '100%',
+                  padding: '18px 20px',
+                  backgroundColor: '#E8E3DC',
+                  border: focusedField === field.key ? `2px solid ${COLORS.ACCENT}` : '1px solid #DDD8D0',
+                  borderRadius: '14px',
+                  fontSize: '16px',
+                  fontFamily: "'Lora', Charter, Georgia, serif",
+                  color: '#111',
+                  outline: 'none',
+                  boxShadow: focusedField === field.key
+                    ? `inset 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 3px rgba(16, 185, 129, 0.15)`
+                    : 'inset 0 2px 6px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.06)',
+                  transition: 'all 0.15s ease',
+                }}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Continue Button - Green */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <motion.button
-          onClick={handleSubmit}
-          disabled={!isValid}
-          whileHover={isValid ? { scale: 1.02 } : {}}
-          whileTap={isValid ? { scale: 0.98 } : {}}
-          style={{
-            backgroundColor: isValid ? COLORS.ACCENT : 'rgba(0, 0, 0, 0.06)',
-            color: isValid ? '#FFFFFF' : '#999',
-            padding: '14px 28px',
-            borderRadius: '12px',
-            fontSize: '15px',
-            fontWeight: '500',
-            border: 'none',
-            cursor: isValid ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontFamily: "'Geist', -apple-system, sans-serif",
-            boxShadow: isValid ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          Continue <span>→</span>
-        </motion.button>
-      </div>
+      {/* Continue Button - fade in after fields */}
+      <AnimatePresence>
+        {typingComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3, ease: 'easeOut' }}
+            style={{ display: 'flex', justifyContent: 'flex-end' }}
+          >
+            <motion.button
+              onClick={handleSubmit}
+              disabled={!isValid}
+              whileHover={isValid ? { scale: 1.02 } : {}}
+              whileTap={isValid ? { scale: 0.98 } : {}}
+              style={{
+                backgroundColor: isValid ? COLORS.ACCENT : 'rgba(0, 0, 0, 0.06)',
+                color: isValid ? '#FFFFFF' : '#999',
+                padding: '14px 28px',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '500',
+                border: 'none',
+                cursor: isValid ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontFamily: "'Geist', -apple-system, sans-serif",
+                boxShadow: isValid ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Continue <span>→</span>
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -944,7 +1091,7 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
     <div style={{
       maxWidth: '640px',
       margin: '0 auto',
-      padding: '140px 24px 48px',
+      padding: '140px 16px 48px',
     }}>
       {/* Progress is now persistent in parent */}
 
@@ -963,28 +1110,28 @@ function AIMomentStepContent({ step, state, onContinue, flowId = 'rafael-tats' }
           <div className="ai-moment-markdown" style={{ fontFamily: "'Lora', Charter, Georgia, serif" }}>
             <style>{`
               .ai-moment-markdown h1 {
-                font-size: 28px;
+                font-size: clamp(22px, 5.5vw, 28px);
                 font-weight: 600;
                 color: #000;
                 line-height: 1.3;
                 margin: 0 0 24px 0;
               }
               .ai-moment-markdown h2 {
-                font-size: 22px;
+                font-size: clamp(18px, 4.5vw, 22px);
                 font-weight: 600;
                 color: #000;
                 line-height: 1.35;
                 margin: 28px 0 16px 0;
               }
               .ai-moment-markdown h3 {
-                font-size: 18px;
+                font-size: clamp(16px, 4vw, 18px);
                 font-weight: 600;
                 color: #111;
                 line-height: 1.4;
                 margin: 24px 0 12px 0;
               }
               .ai-moment-markdown p {
-                font-size: 17px;
+                font-size: clamp(15px, 4vw, 17px);
                 line-height: 1.75;
                 color: #222;
                 margin: 0 0 20px 0;
@@ -2158,6 +2305,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
               key={currentStepIndex}
               step={currentStep}
               onAnswer={handleAnswer}
+              sessionId={state.sessionId || undefined}
             />
           )
         } else if (currentStep.questionType === 'multi-select') {
@@ -2216,6 +2364,7 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
             onBack={goToPreviousStep}
             flowId={flowId}
             sessionId={state.sessionId || undefined}
+            availableCapital={state.context?.assessment?.availableCapital}
           />
         )
 
@@ -2271,19 +2420,19 @@ export function PhaseFlow({ levelId, onComplete, onBack, hideHeader = false, bac
   const hideHeaderAndProgress = isDiagnosisSequence || isLoadingScreen || currentStep.hideProgressBar
 
   return (
-    <div style={{ backgroundColor: COLORS.BACKGROUND, minHeight: '100vh', position: 'relative', overflowX: 'hidden', overflowY: 'auto' }}>
-      {/* Persistent Header - uses absolute positioning when inside a panel */}
+    <div style={{ backgroundColor: COLORS.BACKGROUND, minHeight: '100vh', position: 'relative', overflowX: 'hidden' }}>
+      {/* Persistent Header - always fixed to top */}
       {/* Hidden for diagnosis-sequence and loading screens */}
       {!hideHeader && !hideHeaderAndProgress && (
         <GlassHeader
           onBack={goToPreviousStep}
           showBackButton={(currentStepIndex > 0 || !!onBack) && !shouldDimBackButton}
-          useAbsolutePosition={!!onBack}
+          useAbsolutePosition={false}
           flowId={flowId}
         />
       )}
 
-      {/* Persistent Progress Indicator - stays in place while content slides */}
+      {/* Progress Indicator - scrolls with content */}
       {/* Hidden for diagnosis-sequence and loading screens */}
       {!hideHeaderAndProgress && (
         <div style={{

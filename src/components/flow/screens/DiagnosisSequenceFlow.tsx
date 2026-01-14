@@ -21,6 +21,7 @@ interface DiagnosisSequenceFlowProps {
   flowId?: string
   sessionId?: string
   generationDurationMs?: number
+  availableCapital?: string
 }
 
 /**
@@ -40,7 +41,7 @@ interface DiagnosisSequenceFlowProps {
  * but adds complexity. Consider refactoring if more nested flows are needed.
  * See: bd issue for future refactoring considerations.
  */
-export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = 'growthoperator', sessionId, generationDurationMs = 0 }: DiagnosisSequenceFlowProps) {
+export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = 'growthoperator', sessionId, generationDurationMs = 0, availableCapital }: DiagnosisSequenceFlowProps) {
   // Analytics
   const analytics = useAnalytics({ session_id: sessionId || '', flow_id: flowId })
   const diagnosisStartTimeRef = useRef<number>(Date.now())
@@ -246,7 +247,7 @@ export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = '
             {isTyping && <span className="typing-cursor" style={{ color: '#333' }} />}
           </div>
 
-          {isLastScreen && typingComplete && calendlyUrl && (
+          {isLastScreen && typingComplete && calendlyUrl && availableCapital !== '<1k' && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -270,6 +271,32 @@ export function DiagnosisSequenceFlow({ screens, calendlyUrl, onBack, flowId = '
                   hideLandingPageDetails: false,
                 }}
               />
+            </motion.div>
+          )}
+
+          {isLastScreen && typingComplete && availableCapital === '<1k' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{
+                width: '100%',
+                margin: '32px 0',
+                padding: '32px 24px',
+                backgroundColor: '#F5F0E8',
+                borderRadius: '16px',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{
+                fontFamily: "'Lora', Charter, Georgia, serif",
+                fontSize: '18px',
+                color: '#444',
+                lineHeight: '1.6',
+                margin: 0,
+              }}>
+                Based on what you shared, now might not be the right time for a call. Focus on building up some capital first, then come back when you're ready to invest in yourself.
+              </p>
             </motion.div>
           )}
 

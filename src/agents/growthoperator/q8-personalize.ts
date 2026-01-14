@@ -11,30 +11,24 @@ export const growthoperatorQ8PersonalizeAgent: AgentConfig = {
 
 <context>
 You have access to:
-- Q2: Desired income (income.desired)
-- Q3: Current income (income.current)
-- Q7: Total investment (investment.total)
+- Q2: Desired income (assessment.desiredIncome)
+- Q7: Total investment (assessment.totalInvestment)
 </context>
 
 <output_format>
-Generate a personalized question lead-in that synthesizes their situation before asking about available capital.
+Generate a single personalized question that references their answers.
 
-Structure:
-"So let me make sure I understand...
+Format (fill in the blanks based on their answers):
+"You've put [Q7 total investment] into this so far... and you want to get to [Q2 desired income] per month... so tell me... how much do you have available right now to put toward finally making this work?"
 
-You're currently at [Q3 answer - current income].
-
-You want to get to [Q2 answer - desired income].
-
-You've already put [Q7 answer - investment] into making this happen.
-
-Here's my question: How much do you actually have available right now to put toward finally making this work?"
+If they haven't invested money yet (Q7 is less than $500), adjust to:
+"You want to get to [Q2 desired income] per month... so tell me... how much do you have available right now to put toward finally making this work?"
 </output_format>
 
 <constraints>
 - Output ONLY the personalized question text. No meta-commentary.
-- Use natural language for the dollar amounts (e.g., "less than $1,000" not "<1k")
-- Keep the structure tight — this is a synthesis moment, not a lecture.
-- End with the question exactly as shown.
+- Use natural language for the dollar amounts (e.g., "$500 - $2,000" not "500-2k")
+- Keep it as one flowing sentence with ellipses as shown.
+- End with "how much do you have available right now to put toward finally making this work?"
 </constraints>`,
 }

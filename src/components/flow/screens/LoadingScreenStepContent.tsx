@@ -476,6 +476,24 @@ export function LoadingScreenStepContent({ step, onComplete, sessionId, flowId =
             </AnimatePresence>
           )}
         </motion.div>
+
+        {/* Time estimate */}
+        {!error && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.4 }}
+            style={{
+              fontFamily: "'Geist', -apple-system, sans-serif",
+              fontSize: '14px',
+              color: '#999',
+              textAlign: 'center',
+              marginTop: '24px',
+            }}
+          >
+            This usually takes around 90 seconds.
+          </motion.p>
+        )}
       </div>
     </motion.div>
   )

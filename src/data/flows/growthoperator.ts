@@ -358,20 +358,17 @@ export const growthoperatorFlow: FlowDefinition = {
 
         // ============================================================
         // SECTION 4: THE CONFESSION
-        // No progress bar — single weighted moment
         // ============================================================
 
-        // Q14: The confession (PERSONALIZED OPEN-ENDED)
+        // Q14: The confession (OPEN-ENDED)
         {
           stepKey: 'q14-confession',
           type: 'question',
           questionType: 'open-ended',
-          question: "In one sentence: What's the most frustrating or embarrassing truth about this whole journey — the thing you don't really talk about?",
-          baseQuestion: "In one sentence: What's the most frustrating or embarrassing truth about this whole journey — the thing you don't really talk about?",
-          personalizePromptKey: 'q14-personalize',
+          question: "In one sentence... what's the most frustrating part of this whole journey that you don't really talk about?",
           placeholder: "Type your answer here...",
           stateKey: 'assessment.confession',
-          hideProgressBar: true,
+          sectionLabel: 'The Confession',
           noBackButton: true,
           sectionIndex: 3,
         },
@@ -471,16 +468,16 @@ export const growthoperatorFlow: FlowDefinition = {
           stepKey: 'contact-gate',
           type: 'question',
           questionType: 'contact-info',
-          question: 'Your diagnosis is ready to be built.',
-          instruction: "This isn't a generic result. It's being written specifically for you — based on everything you just shared.\n\nEnter your info below to see what's actually been in your way... and what to do about it.",
+          question: "Now I've got what I need.\n\nI'm working on putting together your diagnosis right now.\n\nEnter your contact info below so I can show you what's actually going on...",
           fields: [
             { key: 'name', label: 'Name', type: 'text', placeholder: 'Your name', autoComplete: 'name' },
             { key: 'email', label: 'Email', type: 'email', placeholder: 'your@email.com', autoComplete: 'email' },
             { key: 'phone', label: 'Phone', type: 'tel', placeholder: '(555) 123-4567', autoComplete: 'tel' },
           ],
           stateKey: 'user',
+          sectionLabel: 'Almost There',
+          sectionIndex: 5,
           noBackButton: true,
-          hideProgressBar: true,
         },
 
         // ============================================================
